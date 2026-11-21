@@ -283,7 +283,7 @@ function App() {
   const [passwordError, setPasswordError] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const API_BASE = process.env.REACT_APP_API_BASE || "http://127.0.0.1:5000";
+  const API_BASE = process.env.REACT_APP_API_BASE || "";
   const getAuthHeaders = useCallback(() => ({
     ...(authToken
       ? { Authorization: `Bearer ${authToken}` }

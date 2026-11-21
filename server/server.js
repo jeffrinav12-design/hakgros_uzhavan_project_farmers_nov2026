@@ -1125,21 +1125,31 @@ app.put("/api/change-password", authenticateToken, async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-connectDatabase()
-  .then((connected) => {
-    if (connected) {
-      console.log(`HAKGROS Server running on port ${PORT}`);
-    } else {
-      console.warn("MongoDB is unavailable. Starting API in degraded mode with limited database-backed features.");
-    }
+if (require.main === module) {
+  connectDatabase()
+    .then((connected) => {
+      if (connected) {
+        console.log(`HAKGROS Server running on port ${PORT}`);
+      } else {
+        console.warn("MongoDB is unavailable. Starting API in degraded mode with limited database-backed features.");
+      }
 
-    app.listen(PORT, () => {
-      console.log(`HAKGROS Server listening on port ${PORT}`);
+      app.listen(PORT, () => {
+        console.log(`HAKGROS Server listening on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Unexpected startup error.", err);
+      app.listen(PORT, () => {
+        console.log(`HAKGROS Server listening on port ${PORT} in degraded mode.`);
+      });
     });
-  })
-  .catch((err) => {
-    console.error("Unexpected startup error.", err);
-    app.listen(PORT, () => {
-      console.log(`HAKGROS Server listening on port ${PORT} in degraded mode.`);
-    });
+}
+
+if (require.main !== module) {
+  connectDatabase().catch((err) => {
+    console.error("Unexpected serverless startup error.", err);
   });
+}
+
+module.exports = app;
