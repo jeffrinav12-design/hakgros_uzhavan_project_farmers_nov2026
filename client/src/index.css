@@ -3,7 +3,7 @@ body {
   font-family: 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #fffaf0 0%, #ffd54f 25%, #ffffff 50%, #e8f5e9 100%);
+  background: linear-gradient(135deg, #B9D175 0%, #D8E7A2 35%, #E8F0C5 100%);
   color: #1b5e20;
 }
 
@@ -28,6 +28,7 @@ button, input, textarea {
 }
 
 .menu-item:hover {
-  background: #2e7d32;
+  background: #CCD67F;
+  color: #1d3d24;
   transform: translateX(8px);
 }

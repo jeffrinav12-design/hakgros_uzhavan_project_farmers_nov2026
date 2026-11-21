@@ -2,6 +2,56 @@
   text-align: center;
 }
 
+:root {
+  --gov-green: #5B7E3C;
+  --gov-green-soft: #B9D175;
+  --gov-highlight: #CCD67F;
+  --gov-dark: #1d3d24;
+}
+
+body {
+  background: linear-gradient(135deg, #B9D175 0%, #D6E7A4 35%, #EBF3C9 100%);
+}
+
+.app-shell {
+  background: linear-gradient(135deg, #B9D175 0%, #D8E7A2 35%, #E8F0C5 100%);
+}
+
+.sidebar-panel {
+  background: linear-gradient(180deg, #5B7E3C 0%, #6B8D4F 100%);
+}
+
+.menu-item {
+  color: #ffffff;
+  transition: all 0.25s ease;
+}
+
+.menu-item:hover {
+  background: #CCD67F !important;
+  color: #1c3a28 !important;
+  transform: translateX(6px);
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+button, input, select, textarea {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+button:hover, input:hover, select:hover, textarea:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(91,126,60,0.12);
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
@@ -35,4 +85,601 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.service-page {
+  color: #17352b;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.service-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 8px 0 22px;
+}
+
+.service-heading h2 { margin: 4px 0 8px; color: #123f32; font-size: 30px; }
+.eyebrow, .result-label { margin: 0; color: #6a4b1f; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.page-intro { max-width: 680px; margin: 0; color: #5d6d66; line-height: 1.6; }
+.official-seal, .advisory-badge { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #b8d4c6; background: #f2f8f4; color: #1d694c; font-size: 12px; font-weight: 800; }
+.status-strip { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; padding: 12px 15px; border-left: 4px solid #258257; background: #eaf5ee; color: #1d694c; font-size: 13px; }
+.status-time { margin-left: auto; color: #668075; font-size: 12px; }
+.settings-grid, .advisory-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.settings-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 24px; }
+.settings-feature-card { min-height: 210px; }
+.settings-form { display: grid; gap: 10px; }
+.settings-form label { color: #4f655a; font-size: 12px; font-weight: 700; }
+.settings-form input { width: 100%; padding: 11px; border: 1px solid #cbdad1; background: #fff; color: #23453a; }
+.settings-inline-actions, .appearance-options { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.settings-inline-actions button:not(.primary-action), .appearance-options button, .profile-summary button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid #bfd3c7; background: #f4f9f5; color: #27694e; cursor: pointer; }
+.appearance-options button { min-width: 130px; justify-content: center; }
+.appearance-options .selected-setting { background: #CCD67F; border-color: #5B7E3C; color: #1d3d24; font-weight: 800; }
+.profile-summary p { margin: 8px 0; color: #536b60; overflow-wrap: anywhere; }
+.profile-summary button { margin-top: 8px; }
+.setting-help, .about-copy { color: #63756c; font-size: 13px; line-height: 1.55; }
+.about-copy { margin-bottom: 17px; }
+.about-meta { display: grid; gap: 7px; color: #47715d; font-size: 12px; font-weight: 700; }
+.success-message { color: #237752; font-size: 13px; font-weight: 700; }
+.error-message { color: #a33a2b; font-size: 13px; font-weight: 700; }
+.account-actions { margin-top: 18px; }
+.logout-action { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid #c76a5a; background: #fff4f1; color: #9b3528; font-weight: 800; cursor: pointer; }
+.advisory-layout { grid-template-columns: minmax(0, 1.7fr) minmax(245px, .8fr); }
+.settings-panel { padding: 22px; border: 1px solid #d8e3dc; background: rgba(255,255,255,.95); box-shadow: 0 8px 24px rgba(25, 68, 49, .06); }
+.panel-title { display: flex; align-items: center; gap: 9px; color: #1c704e; }
+.panel-title h3 { margin: 0 0 17px; color: #173f32; font-size: 17px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 0; border-top: 1px solid #e4ece7; cursor: pointer; }
+.toggle-row strong, .toggle-row small { display: block; }
+.toggle-row small { margin-top: 5px; color: #6a7d73; font-size: 12px; line-height: 1.4; }
+.toggle-row input { width: 18px; height: 18px; accent-color: #237752; }
+.setting-select { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-bottom: 15px; }
+.setting-select label, .context-grid label { display: flex; align-items: center; gap: 4px; color: #4f655a; font-size: 12px; font-weight: 700; }
+.setting-select select, .context-grid select, .context-grid input { min-width: 0; width: 100%; padding: 10px; border: 1px solid #cbdad1; background: #fff; color: #23453a; }
+.privacy-note { display: flex; gap: 12px; align-items: flex-start; margin: 18px 0; padding: 16px; border: 1px solid #d6e1da; background: #f8fbf9; color: #236b4d; }
+.privacy-note p { margin: 5px 0 0; color: #63756c; font-size: 13px; line-height: 1.5; }
+.primary-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border: 0; background: #176344; color: #fff; font-weight: 800; cursor: pointer; }
+.primary-action:hover { background: #0d4b33; }
+.primary-action:disabled { opacity: .55; cursor: not-allowed; }
+.quick-prompts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; color: #6b7c73; font-size: 12px; }
+.quick-prompts button, .response-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #bfd3c7; background: #f4f9f5; color: #27694e; cursor: pointer; font-size: 12px; }
+.advisory-form textarea { width: 100%; resize: vertical; padding: 13px; border: 1px solid #bfd3c7; color: #193c30; line-height: 1.5; }
+.context-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.context-grid label { margin-bottom: 5px; }
+.advisory-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; }
+.ai-toggle { display: flex; gap: 7px; align-items: center; color: #537064; font-size: 12px; }
+.trust-card { padding: 20px; border-top: 4px solid #b88939; background: #f8f3e8; color: #60491f; }
+.trust-card strong { display: block; margin-top: 12px; }
+.trust-card p, .office-card p { margin: 8px 0 0; color: #6d6555; line-height: 1.55; font-size: 13px; }
+.office-card { display: flex; gap: 11px; margin-top: 14px; padding: 17px; border: 1px solid #d8e3dc; background: #fff; color: #28694e; }
+.office-card strong { color: #214e3d; font-size: 13px; }
+.response-panel { margin-top: 18px; padding: 22px; border-left: 4px solid #237752; background: #eef7f0; }
+.response-header { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+.response-header h3 { margin: 5px 0 0; color: #173f32; }
+.response-panel > p { margin: 18px 0; color: #315b48; line-height: 1.7; white-space: pre-wrap; }
+.source-tag { padding: 6px 9px; border: 1px solid #bcd7c5; background: #fff; color: #45715d; font-size: 11px; }
+.response-actions { display: flex; gap: 8px; }
+.saved-section { margin-top: 22px; }
+.saved-section h3 { color: #173f32; font-size: 17px; }
+.saved-list { display: grid; gap: 8px; }
+.saved-list button { display: flex; justify-content: space-between; gap: 15px; padding: 12px 14px; border: 1px solid #d8e3dc; background: #fff; color: #285b46; text-align: left; cursor: pointer; }
+.saved-list small { color: #789084; white-space: nowrap; }
+.high-contrast .service-page { filter: contrast(1.15); }
+
+.dashboard-page { max-width: 1240px; margin: 0 auto; color: #17352b; }
+.dashboard-welcome { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-bottom: 20px; padding: 28px 30px; border-radius: 22px; background: linear-gradient(120deg, #4e7134 0%, #769854 100%); color: #fff; box-shadow: 0 16px 34px rgba(56, 91, 42, .2); }
+.dashboard-kicker { display: block; margin-bottom: 8px; color: #dceba7; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.dashboard-welcome h2 { margin: 0 0 8px; font-size: clamp(25px, 3vw, 38px); }
+.dashboard-welcome p { max-width: 620px; margin: 0; color: #edf6df; line-height: 1.6; }
+.dashboard-chip-row { max-width: 620px; }
+.metric-chip { backdrop-filter: blur(4px); }
+.dashboard-primary-action, .dashboard-tool-card button, .text-action, .icon-action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; cursor: pointer; }
+.dashboard-primary-action { flex: 0 0 auto; padding: 12px 17px; border-radius: 10px; background: #CCD67F; color: #203b24; font-weight: 800; }
+.dashboard-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.dashboard-stat-card { position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid #d8e3dc; border-radius: 15px; background: rgba(255,255,255,.93); color: #214b36; text-align: left; cursor: pointer; box-shadow: 0 8px 22px rgba(25, 68, 49, .06); overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.dashboard-stat-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(180deg, #7ea24b 0%, #d7e68d 100%); }
+.dashboard-stat-card:hover, .dashboard-panel:hover, .dashboard-tool-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(25, 68, 49, 0.12); }
+.dashboard-stat-card > span:nth-child(2) { min-width: 0; flex: 1; }
+.dashboard-stat-card small, .dashboard-stat-card strong { display: block; }
+.dashboard-stat-card small { overflow: hidden; color: #657c6d; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-stat-card strong { margin-top: 5px; color: #234e34; font-size: 20px; }
+.stat-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: #e9f2c7; color: #5B7E3C; }
+.dashboard-main-grid, .dashboard-bottom-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 18px; margin-bottom: 18px; }
+.dashboard-panel { min-width: 0; padding: 22px; border: 1px solid #d8e3dc; border-radius: 17px; background: rgba(255,255,255,.95); box-shadow: 0 8px 24px rgba(25, 68, 49, .06); }
+.dashboard-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dashboard-panel-heading h3 { margin: 7px 0 0; color: #173f32; font-size: 19px; }
+.dashboard-label { display: inline-flex; align-items: center; gap: 6px; color: #5B7E3C; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.icon-action { width: 34px; height: 34px; border: 1px solid #cbdad1; border-radius: 9px; background: #f4f9f5; color: #39724f; }
+.text-action { padding: 5px 0; background: transparent; color: #39724f; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.dashboard-muted { margin: 0; color: #6c8174; font-size: 14px; }
+.weather-dashboard-content { display: grid; grid-template-columns: minmax(150px, .9fr) 1fr; gap: 22px; align-items: center; }
+.weather-temperature { display: grid; gap: 2px; }
+.weather-temperature span { font-size: 43px; line-height: 1; }
+.weather-temperature strong { color: #234e34; font-size: 34px; }
+.weather-temperature small { color: #678070; text-transform: capitalize; }
+.weather-facts { display: grid; gap: 10px; }
+.weather-facts p { display: flex; justify-content: space-between; gap: 15px; margin: 0; padding-bottom: 9px; border-bottom: 1px solid #e4ece7; color: #708278; font-size: 13px; }
+.weather-facts strong { color: #285d42; text-align: right; }
+.market-mini-list, .farmer-mini-list { display: grid; gap: 10px; }
+.market-mini-row, .farmer-mini-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #e5ece7; }
+.market-mini-row:last-child, .farmer-mini-row:last-child { border-bottom: 0; }
+.market-mini-row span, .farmer-mini-row > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+.market-mini-row strong, .farmer-mini-row strong { color: #285d42; font-size: 14px; }
+.market-mini-row small, .farmer-mini-row small { overflow: hidden; color: #768a7e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.market-mini-row b { color: #5B7E3C; white-space: nowrap; }
+.dashboard-tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+.dashboard-tool-card { display: flex; gap: 16px; padding: 22px; border-radius: 17px; color: #fff; box-shadow: 0 12px 26px rgba(42, 75, 47, .14); }
+.dashboard-tool-card h3 { margin: 0 0 8px; font-size: 19px; }
+.dashboard-tool-card p { margin: 0 0 15px; color: rgba(255,255,255,.84); font-size: 13px; line-height: 1.55; }
+.dashboard-tool-card button { padding: 8px 0; background: transparent; color: #fff; font-weight: 800; }
+.ai-tool-card { background: linear-gradient(125deg, #396b49 0%, #4e8b5d 100%); }
+.disease-tool-card { background: linear-gradient(125deg, #8c6b34 0%, #b18c4e 100%); }
+.farmer-avatar { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #e9f2c7; color: #54783d; font-weight: 800; }
+.farmer-mini-row > span:nth-child(2) { flex: 1; }
+.farmer-mini-row em { padding: 4px 8px; border-radius: 20px; background: #e9f2e8; color: #39724f; font-size: 10px; font-style: normal; font-weight: 800; }
+.quick-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.quick-action-grid button { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 11px; border: 1px solid #d2e0d5; border-radius: 10px; background: #f6faf4; color: #326748; cursor: pointer; font-size: 12px; font-weight: 700; text-align: left; }
+.dashboard-insight { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 19px 22px; border-left: 4px solid #5B7E3C; border-radius: 13px; background: #eef5dc; }
+.dashboard-insight h3 { margin: 8px 0 5px; color: #285538; font-size: 17px; }
+.dashboard-insight p { margin: 0; color: #5f7666; font-size: 13px; line-height: 1.5; }
+
+.disease-page { max-width: 1180px; }
+.disease-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+.disease-header h2 { margin: 5px 0 8px; color: #123f32; font-size: 30px; }
+.disease-header-icon { color: #8c6b34; }
+.disease-workspace { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, .7fr); gap: 18px; align-items: start; }
+.disease-upload-panel, .disease-result-card { padding: 22px; border: 1px solid #d8e3dc; border-radius: 17px; background: rgba(255,255,255,.95); box-shadow: 0 8px 24px rgba(25, 68, 49, .06); }
+.upload-dropzone { display: grid; min-height: 170px; place-items: center; align-content: center; gap: 7px; padding: 20px; border: 2px dashed #a9c59c; border-radius: 14px; background: #f7fbef; color: #285538; cursor: pointer; text-align: center; }
+.upload-dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-dropzone small { color: #6b7e70; font-size: 12px; }
+.upload-icon { font-size: 34px; }
+.disease-preview-wrap { margin-top: 16px; padding: 10px; border-radius: 12px; background: #edf5e0; text-align: center; }
+.disease-preview { display: block; width: auto; max-width: 100%; max-height: 350px; margin: 0 auto; object-fit: contain; border-radius: 10px; }
+.disease-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.secondary-action { display: inline-flex; align-items: center; justify-content: center; padding: 11px 16px; border: 1px solid #bfd3c7; background: #f4f9f5; color: #27694e; font-weight: 800; cursor: pointer; }
+.disease-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.disease-error { margin: 15px 0 0; color: #a33a2b; font-size: 13px; font-weight: 700; }
+.disease-safety-card { padding: 20px; border-top: 4px solid #b88939; background: #f8f3e8; color: #60491f; }
+.disease-safety-card strong { display: block; margin-top: 12px; }
+.disease-safety-card p { margin: 8px 0 0; color: #6d6555; font-size: 13px; line-height: 1.55; }
+.disease-result-card { margin-top: 18px; border-left: 4px solid #5B7E3C; }
+.result-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; color: #5B7E3C; }
+.result-card-heading h3 { margin: 5px 0 0; color: #173f32; }
+.disease-result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 20px; }
+.disease-result-field { padding: 13px; border-radius: 10px; background: #f4f9ed; }
+.disease-result-field strong { color: #356346; font-size: 12px; }
+.disease-result-field p { margin: 7px 0 0; color: #476452; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.disease-raw-result { margin-top: 18px; padding: 16px; border-radius: 10px; background: #f4f9ed; color: #476452; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+[data-theme="dark"] .topbar { background: rgba(28, 45, 31, .9) !important; }
+[data-theme="dark"] .topbar h1, [data-theme="dark"] .topbar span { color: #e6f3dd !important; }
+[data-theme="dark"] .dashboard-page { color: #e5f0e1; }
+[data-theme="dark"] .dashboard-stat-card, [data-theme="dark"] .dashboard-panel { background: #243529; border-color: #49634b; color: #e5f0e1; }
+[data-theme="dark"] .dashboard-stat-card small, [data-theme="dark"] .dashboard-muted, [data-theme="dark"] .weather-temperature small, [data-theme="dark"] .weather-facts p, [data-theme="dark"] .market-mini-row small, [data-theme="dark"] .farmer-mini-row small, [data-theme="dark"] .dashboard-insight p { color: #bdd0bd; }
+[data-theme="dark"] .dashboard-stat-card strong, [data-theme="dark"] .dashboard-panel-heading h3, [data-theme="dark"] .weather-temperature strong, [data-theme="dark"] .weather-facts strong, [data-theme="dark"] .market-mini-row strong, [data-theme="dark"] .farmer-mini-row strong, [data-theme="dark"] .dashboard-insight h3 { color: #e8f4d8; }
+[data-theme="dark"] .weather-facts p, [data-theme="dark"] .market-mini-row, [data-theme="dark"] .farmer-mini-row { border-color: #49634b; }
+[data-theme="dark"] .stat-icon, [data-theme="dark"] .farmer-avatar { background: #36513a; color: #d7e99b; }
+[data-theme="dark"] .icon-action, [data-theme="dark"] .quick-action-grid button { background: #304b35; border-color: #66856a; color: #e5f0e1; }
+[data-theme="dark"] .dashboard-insight { background: #213b29; border-color: #7c9b55; }
+
+.farmer-management {
+  display: grid;
+  gap: 20px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.farmer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.farmer-header h2 {
+  margin: 8px 0 0;
+  color: #173f32;
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+.farmer-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.farmer-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #d8e3dc;
+  border-radius: 16px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 8px 20px rgba(25, 68, 49, .06);
+}
+
+.farmer-stat-card small, .farmer-stat-card strong {
+  display: block;
+}
+
+.farmer-stat-card small {
+  color: #6d8179;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.farmer-stat-card strong {
+  margin-top: 7px;
+  color: #214e34;
+  font-size: 22px;
+}
+
+.farmer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr);
+  gap: 18px;
+}
+
+.farmer-form-panel, .farmer-detail-panel, .farmer-table-panel {
+  padding: 22px;
+  border: 1px solid #d8e3dc;
+  border-radius: 18px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 8px 24px rgba(25, 68, 49, .06);
+}
+
+.farmer-form-panel h3, .farmer-detail-panel h3, .farmer-table-panel h3 {
+  margin: 0 0 18px;
+  color: #173f32;
+  font-size: 20px;
+}
+
+.farmer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.form-field label {
+  color: #446857;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.form-field input, .search-box input, .toolbar-selects select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cfdccf;
+  border-radius: 10px;
+  background: #fff;
+  color: #214d38;
+  font-size: 14px;
+}
+
+.farmer-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.farmer-alert {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.farmer-alert.error {
+  background: #fdecea;
+  color: #772018;
+  border: 1px solid #f3c3bc;
+}
+
+.farmer-alert.success {
+  background: #eaf6ee;
+  color: #1d6c45;
+  border: 1px solid #bfe0c8;
+}
+
+.farmer-detail-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #dfe9e2;
+  border-radius: 14px;
+  background: #f7faf5;
+}
+
+.farmer-avatar-detail {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #e9f2c7;
+  color: #54783d;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.farmer-detail-card h4 {
+  margin: 0;
+  color: #173f32;
+  font-size: 22px;
+}
+
+.farmer-detail-card p {
+  margin: 0;
+  color: #4f655a;
+  line-height: 1.6;
+}
+
+.farmer-empty-inline {
+  margin: 0;
+  color: #61766d;
+  line-height: 1.6;
+}
+
+.farmer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.search-box {
+  flex: 1;
+}
+
+.toolbar-selects {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar-selects select {
+  min-width: 170px;
+}
+
+.farmer-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 190px;
+  text-align: center;
+  padding: 20px;
+  border: 1px dashed #bfd3c7;
+  border-radius: 14px;
+  background: #f8fbf8;
+  color: #466859;
+}
+
+.farmer-empty-state h3 {
+  margin: 0;
+  color: #173f32;
+  font-size: 24px;
+}
+
+.farmer-empty-state p {
+  margin: 0;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+.farmer-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e1e9e3;
+  border-radius: 12px;
+}
+
+.farmer-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+}
+
+.farmer-table th, .farmer-table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid #edf3ee;
+  color: #234e39;
+}
+
+.farmer-table th {
+  background: #f4f9f5;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #5f7d6e;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-action {
+  padding: 7px 10px;
+  border: 1px solid #bfd3c7;
+  border-radius: 8px;
+  background: #f4f9f5;
+  color: #27694e;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-action.danger {
+  border-color: #e8b7ae;
+  background: #fff4f1;
+  color: #a84a37;
+}
+
+.table-action:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 980px) {
+  .farmer-stat-grid,
+  .farmer-layout,
+  .dashboard-stat-grid,
+  .dashboard-main-grid,
+  .dashboard-bottom-grid,
+  .dashboard-tools-grid,
+  .settings-grid,
+  .advisory-layout,
+  .service-heading {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .farmer-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .farmer-form-grid,
+  .quick-action-grid,
+  .weather-dashboard-content,
+  .context-grid,
+  .settings-feature-grid,
+  .disease-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .farmer-table-wrap {
+    border-radius: 10px;
+  }
+
+  .dashboard-welcome {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+[data-theme="dark"] .farmer-stat-card,
+[data-theme="dark"] .farmer-form-panel,
+[data-theme="dark"] .farmer-detail-panel,
+[data-theme="dark"] .farmer-table-panel {
+  background: #243529;
+  border-color: #49634b;
+}
+
+[data-theme="dark"] .farmer-stat-card strong,
+[data-theme="dark"] .farmer-header h2,
+[data-theme="dark"] .farmer-form-panel h3,
+[data-theme="dark"] .farmer-detail-panel h3,
+[data-theme="dark"] .farmer-detaill-card h4,
+[data-theme="dark"] .farmer-table th,
+[data-theme="dark"] .farmer-table td,
+[data-theme="dark"] .farmer-empty-state h3 {
+  color: #e8f4d8;
+}
+
+[data-theme="dark"] .farmer-stat-card small,
+[data-theme="dark"] .farmer-detail-card p,
+[data-theme="dark"] .farmer-empty-inline,
+[data-theme="dark"] .farmer-empty-state,
+[data-theme="dark"] .farmer-table td,
+[data-theme="dark"] .farmer-table th {
+  color: #bdd0bd;
+}
+
+[data-theme="dark"] .farmer-detail-card,
+[data-theme="dark"] .farmer-empty-state,
+[data-theme="dark"] .farmer-table-wrap {
+  background: #1d2a22;
+  border-color: #49634b;
+}
+
+[data-theme="dark"] .form-field input,
+[data-theme="dark"] .search-box input,
+[data-theme="dark"] .toolbar-selects select {
+  background: #1d2a22;
+  border-color: #49634b;
+  color: #e8f4d8;
+}
+
+[data-theme="dark"] .table-action {
+  background: #2c4636;
+  border-color: #5d7a63;
+  color: #edf7de;
+}
+
+[data-theme="dark"] .table-action.danger {
+  background: #422d2f;
+  border-color: #7f4f4d;
+  color: #ffd6d1;
+}
+
+[data-theme="dark"] .farmer-alert.success {
+  background: #1b3829;
+  border-color: #2d5b42;
+  color: #d9f7df;
+}
+
+[data-theme="dark"] .farmer-alert.error {
+  background: #3c1e1d;
+  border-color: #73504f;
+  color: #ffd8d3;
+}
+
+[data-theme="dark"] .farmer-table th {
+  background: #21372a;
+}
+[data-theme="dark"] .disease-header h2, [data-theme="dark"] .result-card-heading h3 { color: #e8f4d8; }
+[data-theme="dark"] .disease-upload-panel, [data-theme="dark"] .disease-result-card { background: #243529; border-color: #49634b; }
+[data-theme="dark"] .upload-dropzone, [data-theme="dark"] .disease-preview-wrap, [data-theme="dark"] .disease-result-field, [data-theme="dark"] .disease-raw-result { background: #304b35; border-color: #66856a; color: #e5f0e1; }
+[data-theme="dark"] .upload-dropzone small, [data-theme="dark"] .disease-result-field p, [data-theme="dark"] .disease-raw-result { color: #bdd0bd; }
+[data-theme="dark"] .disease-result-field strong { color: #d7e99b; }
+[data-theme="dark"] .secondary-action { background: #304b35; border-color: #66856a; color: #e5f0e1; }
+
+@media (max-width: 1050px) {
+  .dashboard-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+[data-theme="dark"] body { background: #17231b; color: #e5f0e1; }
+[data-theme="dark"] .app-shell { background: linear-gradient(135deg, #17231b 0%, #223326 55%, #30452f 100%); }
+[data-theme="dark"] .settings-panel, [data-theme="dark"] .office-card, [data-theme="dark"] .saved-list button { background: #243529; border-color: #49634b; color: #e5f0e1; }
+[data-theme="dark"] .service-heading h2, [data-theme="dark"] .panel-title h3, [data-theme="dark"] .response-header h3, [data-theme="dark"] .saved-section h3 { color: #e8f4d8; }
+[data-theme="dark"] .page-intro, [data-theme="dark"] .setting-help, [data-theme="dark"] .about-copy, [data-theme="dark"] .profile-summary p, [data-theme="dark"] .toggle-row small { color: #bdd0bd; }
+[data-theme="dark"] .settings-form input, [data-theme="dark"] .setting-select select, [data-theme="dark"] .context-grid select, [data-theme="dark"] .context-grid input, [data-theme="dark"] .advisory-form textarea { background: #18271c; border-color: #557057; color: #edf7e7; }
+[data-theme="dark"] .status-strip, [data-theme="dark"] .privacy-note, [data-theme="dark"] .response-panel { background: #213b29; color: #d9efd6; border-color: #5d8861; }
+[data-theme="dark"] .appearance-options button, [data-theme="dark"] .settings-inline-actions button:not(.primary-action), [data-theme="dark"] .profile-summary button { background: #304b35; color: #e5f0e1; border-color: #66856a; }
+[data-theme="dark"] .quick-prompts button, [data-theme="dark"] .response-actions button { background: #304b35; color: #e5f0e1; border-color: #66856a; }
+
+@media (max-width: 800px) {
+  .settings-grid, .settings-feature-grid, .advisory-layout, .dashboard-main-grid, .dashboard-bottom-grid, .dashboard-tools-grid, .disease-workspace { grid-template-columns: 1fr; }
+  .service-heading { flex-direction: column; }
+  .advisory-actions { align-items: stretch; flex-direction: column; }
+  .status-time { display: none; }
+  .dashboard-welcome, .dashboard-insight { align-items: flex-start; flex-direction: column; }
+  .dashboard-primary-action { width: 100%; }
+  .weather-dashboard-content { grid-template-columns: 1fr; }
+  .dashboard-page { max-width: none; }
+  .disease-header { flex-direction: column; }
+}
+
+@media (max-width: 520px) {
+  .dashboard-stat-grid { grid-template-columns: 1fr; }
+  .dashboard-welcome { padding: 22px; }
+  .dashboard-welcome h2 { font-size: 25px; }
+  .dashboard-panel, .dashboard-tool-card { padding: 17px; }
+  .quick-action-grid { grid-template-columns: 1fr; }
+  .disease-result-grid { grid-template-columns: 1fr; }
 }
