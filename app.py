@@ -224,7 +224,7 @@ if nav == "FinOps Command Center & Live SQL Feed":
     col4.metric("Unified Tenant Apps", "8 Modules", "All Core Apps Connected")
 
     st.divider()
-Use code with caution.
+
 st.subheader("Live Multi-Cloud SQL Telemetry Feed (Neon + Supabase)")
 if is_live_sql:
 st.caption("Reading live committed transactions directly from your 24/7 PostgreSQL nodes.")
