@@ -229,7 +229,7 @@ st.subheader("Live Multi-Cloud SQL Telemetry Feed (Neon + Supabase)")
 if is_live_sql:
  st.caption("Reading live committed transactions directly from your 24/7 PostgreSQL nodes.")
 else:
-st.caption("Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
+ st.caption("Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
 st.dataframe(logs_df, use_container_width=True, hide_index=True)
 st.divider()
 st.subheader("Unified 8-App Commercial & Academic Suite")
