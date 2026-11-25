@@ -283,7 +283,7 @@ w1.metric("Temp / வெப்பநிலை", f"{weather_data['temp']} C")
 w2.metric("Humidity / ஈரப்பதம்", f"{weather_data['humidity']}%")
 w3.metric("Wind / காற்று", f"{weather_data['wind']} km/h")
 if st.button("Run Bilingual AI Diagnosis & Route to Cloud", type="primary"):
-ai_source, diagnosis_text = run_bilingual_crop_ai(crop, symptom, weather_data)
+ ai_source, diagnosis_text = run_bilingual_crop_ai(crop, symptom, weather_data)
 payload = {
 "region": region, "crop": crop, "symptom": symptom,
 "weather": weather_data, "image_buffer": "X" * (65000 if simulate_heavy_image else 500)
@@ -294,7 +294,7 @@ st.success(f"### Bilingual Advisory / இருமொழி ஆலோசனை\n
 st.markdown(diagnosis_text)
 st.info(f"FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_kb']} KB | {receipt['latency_ms']} ms | {receipt['status']}")
 elif nav == "Biblical Archaeology Engine":
-st.title("Biblical Archaeology Engine - Levant Geospatial & 3D Offloader")
+ st.title("Biblical Archaeology Engine - Levant Geospatial & 3D Offloader")
 levant_sites = pd.DataFrame([
 {"Site": "City of David (Jerusalem)", "lat": 31.7731, "lon": 35.2354, "Primary Era": "Iron Age II / Second Temple"},
 {"Site": "Tel Megiddo", "lat": 32.5852, "lon": 35.1844, "Primary Era": "Bronze Age / Iron Age"},
@@ -320,14 +320,14 @@ stratum_layer = st.selectbox("Stratigraphy Layer / Pottery Typology:", [
 artifact_notes = st.text_input("Field Locus & Trench Notes:", "Locus 402, Square B4 - Intact rim & inscribed seal impression")
 simulate_3d_mesh = st.checkbox("Simulate Heavy 3D Photogrammetry Mesh (240 KB -> Auto-Offload to Supabase Bulk)", value=True)
 if st.button("Cross-Check Chronology & Route Excavation Packet", type="primary"):
-mesh_sim_data = "3D_MESH_STREAM_" + ("M" * (240000 if simulate_3d_mesh else 800))
+ mesh_sim_data = "3D_MESH_STREAM_" + ("M" * (240000 if simulate_3d_mesh else 800))
 payload = {"site": selected_site, "stratum": stratum_layer, "notes": artifact_notes, "mesh_payload": mesh_sim_data}
 priority = "LOW" if simulate_3d_mesh else "HIGH"
 receipt = route_workload("Biblical_Archaeology_3D", priority, payload, f"{selected_site} | {stratum_layer[:20]}")
 st.success(f"Chronology Verified: {stratum_layer} matches strata at {selected_site}.")
 st.info(f"FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_kb']} KB | {receipt['latency_ms']} ms | {receipt['status']}")
 elif nav == "Sahaezer (Hackathon Winner Telemetry)":
-st.title("Sahaezer - Disaster Coordination & GRACE AI Food Rescue")
+ st.title("Sahaezer - Disaster Coordination & GRACE AI Food Rescue")
 st.markdown("3rd Prize Hackathon Winner | Jetpack Compose + OpenStreetMap Offline Tiles + GRACE AI Engine")
 rescue_nodes = pd.DataFrame([
 {"Node": "Gudalur Relief Hub (Nilgiris)", "lat": 11.5030, "lon": 76.4917, "Type": "Emergency & Landslide SOS"},
@@ -345,7 +345,7 @@ dispatch_mode = st.radio("Select Telemetry Packet Type:", [
 zone = st.selectbox("Select Incident / Donor Location:", rescue_nodes["Node"].tolist())
 details = f"{dispatch_mode[:18]} at {zone}"
 if st.button("Transmit Live Telemetry Packet to Stratum Cloud", type="primary"):
-payload = {"app": "Sahaezer_Android_Client", "mode": dispatch_mode, "zone": zone}
+ payload = {"app": "Sahaezer_Android_Client", "mode": dispatch_mode, "zone": zone}
 receipt = route_workload("Sahaezer_Disaster_SOS", "HIGH", payload, details)
 st.error(f"DISPATCH CONFIRMED: {details}")
 st.info(f"FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_ms']} ms | {receipt['status']}")
@@ -354,7 +354,7 @@ st.subheader("Offline-Ready OpenStreetMap Telemetry Grid")
 st.map(rescue_nodes, latitude="lat", longitude="lon", zoom=8)
 st.dataframe(rescue_nodes[["Node", "Type"]], use_container_width=True, hide_index=True)
 elif nav == "Solaraelpan (INR Solar Estimator)":
-st.title("Solaraelpan - Live Solar Irradiance & INR Savings Engine")
+ st.title("Solaraelpan - Live Solar Irradiance & INR Savings Engine")
 st.markdown("Live Portal: solaraelpan.vercel.app")
 sc1, sc2 = st.columns(2)
 with sc1:
@@ -373,12 +373,12 @@ m1.metric("Live Irradiance", f"{solar_weather['irradiance']} W/m2")
 m2.metric("Monthly Savings", f"Rs. {monthly_savings_inr:,.0f}")
 m3.metric("Annual Savings", f"Rs. {annual_savings_inr:,.0f}")
 if st.button("Log Solar Estimate to Stratum Cloud", type="primary"):
-payload = {"city": city, "kw": kw_capacity, "monthly_inr": monthly_savings_inr, "irradiance": solar_weather["irradiance"]}
+ payload = {"city": city, "kw": kw_capacity, "monthly_inr": monthly_savings_inr, "irradiance": solar_weather["irradiance"]}
 receipt = route_workload("Solaraelpan_Solar_INR", "HIGH", payload, f"{kw_capacity}kW in {city.split()[0]} -> Rs.{monthly_savings_inr}/mo")
 st.success(f"Estimated {daily_units_kwh} kWh/day generating Rs. {annual_savings_inr:,.0f}/year in grid offset.")
 st.info(f"FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_ms']} ms | {receipt['status']}")
 elif nav == "Campus Governance (Sankara College)":
-st.title("Campus Governance Suite - Sankara College of Science and Commerce")
+ st.title("Campus Governance Suite - Sankara College of Science and Commerce")
 st.markdown("""
 - Deeksharambh (Bridge Course Portal): deeksharambh70antigravity.vercel.app
 - Academic Selection Portal (Elective Anti-Collision): studentselectionportal.vercel.app
@@ -390,13 +390,13 @@ dept = st.selectbox("Department:", ["B.Sc. Computer Science with Data Analytics"
 core_paper = st.selectbox("Core Morning Slot (09:30 AM):", ["Big Data Analytics", "Cloud Computing & FinOps", "Machine Learning"])
 elective_choice = st.selectbox("Open Elective Choice:", ["Quantitative Aptitude (11:30 AM)", "Big Data Analytics Lab (09:30 AM - Conflict!)", "Cyber Forensics (02:00 PM)"])
 if st.button("Validate Timetable & Sync Student Record", type="primary"):
-has_conflict = "Conflict" in elective_choice
+ has_conflict = "Conflict" in elective_choice
 payload = {"dept": dept, "core": core_paper, "elective": elective_choice, "conflict": has_conflict}
 receipt = route_workload("Sankara_Campus_Governance", "HIGH", payload, f"{dept[:18]} | {elective_choice[:20]}")
 if has_conflict:
-st.error("Schedule Collision Detected! Both papers occupy the 09:30 AM slot. Auto-shuffling to Cyber Forensics (02:00 PM).")
+ st.error("Schedule Collision Detected! Both papers occupy the 09:30 AM slot. Auto-shuffling to Cyber Forensics (02:00 PM).")
 else:
-st.success("Zero Timetable Collision! Elective seat locked and synced to campus ledger.")
+ st.success("Zero Timetable Collision! Elective seat locked and synced to campus ledger.")
 st.info(f"FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_ms']} ms | {receipt['status']}")
 with cg2:
 st.subheader("Deeksharambh Bridge Course Readiness")
