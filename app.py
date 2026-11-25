@@ -246,7 +246,7 @@ apps = [
 st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 
 elif nav == ("Hakgros Uzhavan - Bilingual Agri-AI"):
-  st.title("Hakgros Uzhavan - Bilingual Agri-AI & Micro-Climate Sync")
+ st.title("Hakgros Uzhavan - Bilingual Agri-AI & Micro-Climate Sync")
 st.markdown("Live Frontend: hakgrosuzhavanprojectfarmersnov2026.vercel.app")
 c1, c2 = st.columns(2)
 with c1:
