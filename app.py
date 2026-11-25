@@ -229,13 +229,13 @@ nav = st.sidebar.radio(
 ]
 )
 
-==============================================================================
+
 
 
 #VIEW 1: FINOPS COMMAND CENTER, 8-APP SUITE & LIVE SQL FEED
 
 
-==============================================================================
+
 
 if nav == "📊 FinOps Command Center & Live SQL Feed":
 st.title("☁️ Stratum Cloud — Multi-Cloud FinOps Engine")
@@ -269,13 +269,13 @@ apps = [
 ]
 st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 
-==============================================================================
+
 
 
 #VIEW 2: HAKGROS UZHAVAN — SELF-HEALING BILINGUAL AGRI-AI UPGRADE
 
 
-==============================================================================
+
 
 elif nav == "🌱 Hakgros Uzhavan (Bilingual Agri-AI)":
 st.title("🌱 Hakgros Uzhavan — Bilingual Agri-AI & Micro-Climate Sync")
@@ -322,13 +322,12 @@ st.success(f"### 🩺 Bilingual Advisory / இருமொழி ஆலோசன
 st.markdown(diagnosis_text)
 st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_kb']} KB | {receipt['latency_ms']} ms | {receipt['status']}")
 
-==============================================================================
+
 
 
 #VIEW 3: BIBLICAL ARCHAEOLOGY ENGINE
 
 
-==============================================================================
 
 elif nav == "🏛️ Biblical Archaeology Engine":
 st.title("🏛️ Biblical Archaeology Engine — Levant Geospatial & 3D Offloader")
@@ -364,13 +363,13 @@ receipt = route_workload("Biblical_Archaeology_3D", priority, payload, f"{select
 st.success(f"✅ Chronology Verified: {stratum_layer} matches strata at {selected_site}.")
 st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_kb']} KB | {receipt['latency_ms']} ms | {receipt['status']}")
 
-==============================================================================
+
 
 
 #VIEW 4: SAHAEZER — DISASTER SOS & GRACE AI FOOD RESCUE
 
 
-==============================================================================
+
 
 elif nav == "🚨 Sahaezer (Hackathon Winner Telemetry)":
 st.title("🚨 Sahaezer — Disaster Coordination & GRACE AI Food Rescue")
@@ -400,13 +399,13 @@ st.subheader("🗺️ Offline-Ready OpenStreetMap Telemetry Grid")
 st.map(rescue_nodes, latitude="lat", longitude="lon", zoom=8)
 st.dataframe(rescue_nodes[["Node", "Type"]], use_container_width=True, hide_index=True)
 
-==============================================================================
+
 
 
 #VIEW 5: SOLARAELPAN — LIVE SOLAR IRRADIANCE & ₹ INR SAVINGS ESTIMATOR
 
 
-==============================================================================
+
 
 elif nav == "☀️ Solaraelpan (₹ INR Solar Estimator)":
 st.title("☀️ Solaraelpan — Live Solar Irradiance & ₹ INR Savings Engine")
@@ -434,13 +433,13 @@ receipt = route_workload("Solaraelpan_Solar_INR", "HIGH", payload, f"{kw_capacit
 st.success(f"Estimated {daily_units_kwh} kWh/day generating ₹{annual_savings_inr:,.0f}/year in grid offset.")
 st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_ms']} ms | {receipt['status']}")
 
-==============================================================================
+
 
 
 #VIEW 6: CAMPUS GOVERNANCE SUITE (SANKARA COLLEGE)
 
 
-==============================================================================
+
 
 elif nav == "🎓 Campus Governance (Sankara College)":
 st.title("🎓 Campus Governance Suite — Sankara College of Science and Commerce")
