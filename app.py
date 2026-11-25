@@ -243,7 +243,7 @@ apps = [
 {"Name": "6. Innovoadai", "Domain": "Innovation Showcase", "Routing": "Read-Only Tier -> Neon Fast", "Status": "Live Portal", "Link": "share.google"},
 {"Name": "7. AI Email Agent & 8. Moed Bible App", "Domain": "Automation & Daily Scripture", "Routing": "API Queue -> Neon Fast", "Status": "API Ready", "Link": "#"},
 ]
-   st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 
 
 elif nav == "Hakgros Uzhavan - Bilingual Agri-AI":
