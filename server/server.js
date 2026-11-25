@@ -12,6 +12,7 @@ const User = require('./models/User');
 const Land = require('./models/Land');
 const CropPlan = require('./models/CropPlan');
 const { getCurrentWeather } = require('./services/weather');
+const { getAgmarknetPrices } = require('./services/marketPrices');
 
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -594,21 +595,49 @@ app.delete("/api/farmers/:id", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/weather", async (req, res) => {
-  res.json(await getCurrentWeather(req.query.city));
+  const hasLatitude = req.query.latitude !== undefined;
+  const hasLongitude = req.query.longitude !== undefined;
+  if (hasLatitude !== hasLongitude) {
+    return res.status(400).json({ message: "Provide both latitude and longitude." });
+  }
+
+  const location = hasLatitude
+    ? {
+      name: req.query.name || req.query.city,
+      country: req.query.country,
+      countryCode: req.query.countryCode,
+      latitude: Number(req.query.latitude),
+      longitude: Number(req.query.longitude),
+    }
+    : req.query.city;
+
+  try {
+    return res.json(await getCurrentWeather(location));
+  } catch (error) {
+    return res.status(400).json({ message: error.message, source: "FALLBACK" });
+  }
 });
 
 app.get("/api/market", async (req, res) => {
   try {
-    const marketData = [
-      { crop: "Paddy", price: "₹35/kg", source: "Live market feed" },
-      { crop: "Cotton", price: "₹95/kg", source: "Live market feed" },
-      { crop: "Sugarcane", price: "₹3.8/kg", source: "Live market feed" },
-      { crop: "Groundnut", price: "₹78/kg", source: "Live market feed" },
-    ];
-
-    res.json(marketData);
+    return res.json(await getAgmarknetPrices(req.query));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (error.code === "MARKET_API_NOT_CONFIGURED") {
+      return res.status(503).json({
+        records: [],
+        source: "Agmarknet / data.gov.in",
+        status: "FALLBACK",
+        message: error.message,
+      });
+    }
+
+    console.error("Agmarknet price request failed:", error.message);
+    return res.status(502).json({
+      records: [],
+      source: "Agmarknet / data.gov.in",
+      status: "FALLBACK",
+      message: "The official Agmarknet price feed is temporarily unavailable. Please try again.",
+    });
   }
 });
 

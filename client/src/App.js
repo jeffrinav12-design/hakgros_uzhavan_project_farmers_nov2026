@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import "./App.css";
 import {
   Leaf,
   CloudSun,
@@ -31,14 +32,20 @@ import {
   FlaskConical,
   Search,
   Star,
+  ExternalLink,
 } from "lucide-react";
 import { convertArea, interpretSoilPh } from "./landUtils";
 import { buildCropCalendar } from "./cropPlanner";
 import {
-  getKeylessMicroClimate,
   runKeylessBilingualAgriAI,
   saveAgriTelemetryLog,
 } from "./utils/hakgrosKeylessApi";
+import {
+  DEFAULT_WEATHER_LOCATION,
+  WEATHER_PRESETS,
+  fetchRegionalWeather,
+  searchWeatherLocations,
+} from "./weather";
 import { flushTelemetry, hasQueuedTelemetry, recordTelemetry } from "./telemetry";
 
 const parseDiseaseAnalysis = (text) => {
@@ -128,11 +135,18 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [weatherError, setWeatherError] = useState("");
-  const [selectedWeatherCity, setSelectedWeatherCity] = useState("Coimbatore");
+  const [selectedWeatherLocation, setSelectedWeatherLocation] = useState(DEFAULT_WEATHER_LOCATION);
+  const [weatherLocationQuery, setWeatherLocationQuery] = useState("");
+  const [weatherLocationResults, setWeatherLocationResults] = useState([]);
+  const [weatherLocationSearching, setWeatherLocationSearching] = useState(false);
+  const [weatherLocationError, setWeatherLocationError] = useState("");
   const [telemetryStatus, setTelemetryStatus] = useState("FALLBACK");
   const [marketPrices, setMarketPrices] = useState([]);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState("");
+  const [marketMetadata, setMarketMetadata] = useState(null);
+  const [marketFilters, setMarketFilters] = useState({ state: "", district: "", market: "", commodity: "" });
+  const [marketOffset, setMarketOffset] = useState(0);
   const [analytics, setAnalytics] = useState({
     totalFarmers: 0,
     totalAdvisories: 0,
@@ -272,6 +286,17 @@ function App() {
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [advisoryContext, setAdvisoryContext] = useState({ crop: "", stage: "", location: "Coimbatore", urgency: "routine" });
+
+  const navigateToPage = (page) => {
+    setActivePage(page);
+    if (window.innerWidth <= 760) setSidebarOpen(false);
+  };
+
+  useEffect(() => {
+    if (window.innerWidth <= 760) {
+      setSidebarOpen(false);
+    }
+  }, []);
   const [savedAdvisories, setSavedAdvisories] = useState(() => {
     try { return JSON.parse(localStorage.getItem("hakgros_advisories")) || []; } catch { return []; }
   });
@@ -383,29 +408,97 @@ function App() {
     setWeatherError("");
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/weather?city=${encodeURIComponent(selectedWeatherCity)}`
-      );
-
-      if (!res.ok) {
-        throw new Error("Unable to load weather data");
-      }
-
+      const params = new URLSearchParams({
+        city: selectedWeatherLocation.name,
+        name: selectedWeatherLocation.name,
+        country: selectedWeatherLocation.country || "",
+        countryCode: selectedWeatherLocation.countryCode || "",
+        latitude: String(selectedWeatherLocation.latitude),
+        longitude: String(selectedWeatherLocation.longitude),
+      });
+      const res = await fetch(`${API_BASE}/api/weather?${params}`);
+      if (!res.ok) throw new Error("Weather backend unavailable.");
       const data = await res.json();
       if (!data?.main || !Number.isFinite(data.main.temp)) {
         throw new Error("Weather API returned incomplete metrics.");
       }
       setWeather(data);
       trackTelemetry({ event: "weather", status: data.source === "FALLBACK" ? "FALLBACK" : "LIVE", source: data.source || "server" });
-    } catch {
-      const data = await getKeylessMicroClimate(selectedWeatherCity.toLowerCase());
-      setWeather(data);
-      setWeatherError("");
-      trackTelemetry({ event: "weather", status: data.status, source: "open-meteo-client" });
+    } catch (error) {
+      try {
+        const data = await fetchRegionalWeather(selectedWeatherLocation);
+        setWeather(data);
+        setWeatherError("");
+        trackTelemetry({ event: "weather", status: data.source, source: "open-meteo-client" });
+      } catch (fallbackError) {
+        setWeather(null);
+        setWeatherError(fallbackError.message || error.message);
+        trackTelemetry({ event: "weather", status: "FALLBACK", source: "weather-unavailable" });
+      }
     } finally {
       setWeatherLoading(false);
     }
-  }, [API_BASE, selectedWeatherCity, trackTelemetry]);
+  }, [API_BASE, selectedWeatherLocation, trackTelemetry]);
+
+  const loadMarketPrices = useCallback(async (filters = {}, offset = 0) => {
+    setMarketLoading(true);
+    setMarketError("");
+    const params = new URLSearchParams({ limit: "50", offset: String(offset) });
+    Object.entries(filters).forEach(([key, value]) => {
+      if (String(value || "").trim()) params.set(key, String(value).trim());
+    });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/market?${params}`);
+      const body = await response.text();
+      let data;
+      try {
+        data = body ? JSON.parse(body) : {};
+      } catch {
+        throw new Error(response.ok
+          ? "Market data service returned an invalid response."
+          : `Market price service unavailable (HTTP ${response.status}).`);
+      }
+      if (!response.ok) throw new Error(data.message || "Market price feed is unavailable.");
+      if (!Array.isArray(data.records)) throw new Error("Market price feed returned an invalid response.");
+      setMarketPrices(data.records);
+      setMarketMetadata(data);
+    } catch (error) {
+      setMarketPrices([]);
+      setMarketError(error.message || "Market price feed is unavailable.");
+      setMarketMetadata({ status: "FALLBACK", source: "Agmarknet", records: [] });
+    } finally {
+      setMarketLoading(false);
+    }
+  }, [API_BASE]);
+
+  const handleWeatherLocationSearch = async (event) => {
+    event.preventDefault();
+    setWeatherLocationSearching(true);
+    setWeatherLocationError("");
+    setWeatherLocationResults([]);
+    try {
+      const results = await searchWeatherLocations(weatherLocationQuery);
+      setWeatherLocationResults(results);
+      if (!results.length) setWeatherLocationError(t("No matching places found. Try a city or postal code.", "இடம் கிடைக்கவில்லை. நகரம் அல்லது அஞ்சல் குறியீட்டை முயற்சிக்கவும்."));
+    } catch (error) {
+      setWeatherLocationError(error.message || t("Location search is unavailable.", "இடத் தேடல் கிடைக்கவில்லை."));
+    } finally {
+      setWeatherLocationSearching(false);
+    }
+  };
+
+  const chooseWeatherLocation = (location) => {
+    setSelectedWeatherLocation(location);
+    setWeatherLocationQuery("");
+    setWeatherLocationResults([]);
+    setWeatherLocationError("");
+  };
+
+  const chooseWeatherPreset = (name) => {
+    const location = WEATHER_PRESETS.find((item) => item.name === name);
+    if (location) chooseWeatherLocation(location);
+  };
 
   useEffect(() => {
     const retryTelemetry = () => {
@@ -461,20 +554,7 @@ function App() {
         })
         .finally(() => setFarmersLoading(false));
 
-      setMarketLoading(true);
-      setMarketError("");
-      fetch(`${API_BASE}/api/market`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (!Array.isArray(data)) throw new Error("Market data unavailable");
-          setMarketPrices(data || []);
-        })
-        .catch((err) => {
-          console.log(err);
-          setMarketPrices([]);
-          setMarketError(language === "en" ? "Market data unavailable" : "சந்தை தரவு கிடைக்கவில்லை");
-        })
-        .finally(() => setMarketLoading(false));
+      loadMarketPrices();
 
       authFetch(`${API_BASE}/api/analytics`)
         .then((res) => res.json())
@@ -497,7 +577,7 @@ function App() {
     }
 
     fetchWeather();
-  }, [API_BASE, authFetch, fetchWeather, isAuthenticated, language]);
+  }, [API_BASE, authFetch, fetchWeather, isAuthenticated, language, loadMarketPrices]);
 
   useEffect(() => {
     const sections = document.querySelectorAll(".reveal-on-scroll");
@@ -579,7 +659,7 @@ function App() {
       humidity: weather?.main?.humidity,
     });
     const receipt = saveAgriTelemetryLog({
-      region: selectedWeatherCity.toLowerCase(),
+      region: selectedWeatherLocation.name.toLowerCase(),
       crop,
       symptom,
       weather,
@@ -1893,23 +1973,23 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div
-        style={{
-          display: "flex",
-          minHeight: "100vh",
-          background: "radial-gradient(circle at top, #f4ffeb 0%, #eaf7df 32%, #edf6f0 100%)",
-          fontFamily: "Segoe UI, Arial, sans-serif",
-          padding: "32px 20px",
-        }}
-      >
-        <div
-          style={{
-            margin: "auto",
-            width: "100%",
-            maxWidth: "520px",
-          }}
-        >
+      <div className="onboarding-screen">
+        <div className="onboarding-layout">
+          <aside className="onboarding-story">
+            <div className="onboarding-brand"><span><Leaf size={19} /></span> HAKGROS</div>
+            <p className="onboarding-eyebrow">{t("BUILT FOR THE PEOPLE WHO GROW", "விவசாயிகளுக்காக உருவாக்கப்பட்டது")}</p>
+            <h2>{t("Make every season a little smarter.", "ஒவ்வொரு பருவத்தையும் மேலும் சிறப்பாக்குங்கள்.")}</h2>
+            <p className="onboarding-story-copy">{t("A clear, practical workspace for your crops, land, local weather and day-to-day decisions.", "உங்கள் பயிர்கள், நிலம், உள்ளூர் வானிலை மற்றும் அன்றாட முடிவுகளுக்கான எளிய, பயனுள்ள தளம்.")}</p>
+            <div className="onboarding-feature-list">
+              <div><span><CloudSun size={18} /></span><p><strong>{t("Local weather", "உள்ளூர் வானிலை")}</strong><small>{t("Conditions for your region", "உங்கள் பகுதியின் நிலவரம்")}</small></p></div>
+              <div><span><Sprout size={18} /></span><p><strong>{t("Crop guidance", "பயிர் வழிகாட்டுதல்")}</strong><small>{t("Practical support through the season", "பருவம் முழுவதும் பயனுள்ள உதவி")}</small></p></div>
+              <div><span><ShieldCheck size={18} /></span><p><strong>{t("Your farm, your control", "உங்கள் பண்ணை, உங்கள் கட்டுப்பாடு")}</strong><small>{t("Your profile stays on this device", "உங்கள் விவரம் இந்த சாதனத்தில் இருக்கும்")}</small></p></div>
+            </div>
+            <div className="onboarding-landscape" aria-hidden="true"><span /><span /><span /><i /></div>
+          </aside>
+          <div className="onboarding-form-wrap">
           <div
+            className="onboarding-card"
             style={{
               background: "rgba(255,255,255,0.96)",
               borderRadius: "28px",
@@ -1918,7 +1998,7 @@ function App() {
               border: "1px solid rgba(104, 158, 92, 0.18)",
             }}
           >
-            <div
+            <div className="onboarding-kicker"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1937,15 +2017,15 @@ function App() {
               Smart Farmer Start
             </div>
 
-            <h1 style={{ color: "#1b5e20", margin: "0 0 10px", fontSize: "34px", lineHeight: 1.15 }}>
+            <h1 className="onboarding-title" style={{ color: "#1b5e20", margin: "0 0 10px", fontSize: "34px", lineHeight: 1.15 }}>
               HAKGROS UZHAVAN
             </h1>
 
-            <p style={{ color: "#3d5f3d", margin: "0 0 8px", fontWeight: 700, fontSize: "18px" }}>
+            <p className="onboarding-welcome" style={{ color: "#3d5f3d", margin: "0 0 8px", fontWeight: 700, fontSize: "18px" }}>
               {t("Welcome to HAKGROS UZHAVAN", "HAKGROS UZHAVANக்கு வரவேற்கிறோம்")}
             </p>
 
-            <p style={{ color: "#5f6a5d", margin: "0 0 24px", lineHeight: 1.6 }}>
+            <p className="onboarding-description" style={{ color: "#5f6a5d", margin: "0 0 24px", lineHeight: 1.6 }}>
               {t(
                 "Start your farm profile in seconds and access smart crop, soil, weather, and advisory tools.",
                 "சில நொடிகளில் உங்கள் பண்ணை விவரத்தை தொடங்குங்கள்; ஸ்மார்ட் பயிர், மண், வானிலை மற்றும் ஆலோசனை கருவிகளை அணுகலாம்."
@@ -1967,13 +2047,14 @@ function App() {
               </div>
             )}
 
-            <form onSubmit={handleAuthSubmit}>
-              <div style={{ display: "grid", gap: "18px" }}>
+            <form className="onboarding-form" onSubmit={handleAuthSubmit}>
+              <div className="onboarding-fields" style={{ display: "grid", gap: "18px" }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
+                  <label className="onboarding-label" style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
                     {t("Farmer Name", "விவசாயியின் பெயர்")}
                   </label>
                   <input
+                    className="onboarding-input"
                     type="text"
                     name="name"
                     value={authForm.name}
@@ -1994,10 +2075,11 @@ function App() {
                 </div>
 
                 <div>
-                  <label style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
+                  <label className="onboarding-label" style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
                     {t("Place / Village", "இடம் / ஊர்")}
                   </label>
                   <input
+                    className="onboarding-input"
                     type="text"
                     name="email"
                     value={authForm.email}
@@ -2018,10 +2100,11 @@ function App() {
                 </div>
 
                 <div>
-                  <label style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
+                  <label className="onboarding-label" style={{ display: "block", marginBottom: "8px", color: "#2d4b2d", fontWeight: 700 }}>
                     {t("Land Area (acres)", "நிலப்பரப்பு (ஏக்கர்)")}
                   </label>
                   <input
+                    className="onboarding-input"
                     type="text"
                     name="password"
                     value={authForm.password}
@@ -2043,6 +2126,7 @@ function App() {
               </div>
 
               <button
+                className="onboarding-submit"
                 type="submit"
                 style={{
                   width: "100%",
@@ -2062,7 +2146,7 @@ function App() {
               </button>
             </form>
 
-            <div
+            <div className="onboarding-local-note"
               style={{
                 marginTop: "18px",
                 paddingTop: "18px",
@@ -2075,13 +2159,14 @@ function App() {
               {t("Your farm profile stays local on this device.", "உங்கள் பண்ணை விவரம் இந்த சாதனத்தில் மட்டும் சேமிக்கப்படும்.")}
             </div>
           </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`app-shell ${settings.highContrast ? "high-contrast" : ""} theme-${theme}`}
+    <div className={`app-shell ${settings.highContrast ? "high-contrast" : ""} theme-${theme} ${sidebarOpen ? "sidebar-expanded" : "sidebar-collapsed"}`}
       style={{
         display: "flex",
         minHeight: "100vh",
@@ -2091,7 +2176,7 @@ function App() {
     >
       {/* ================= SIDEBAR ================= */}
       <div
-        className="sidebar-panel"
+        className={`sidebar-panel ${sidebarOpen ? "is-open" : "is-closed"}`}
         style={{
           width: "260px",
           background: "linear-gradient(180deg, #5B7E3C 0%, #6D8F4C 100%)",
@@ -2100,59 +2185,90 @@ function App() {
           boxShadow: "2px 0 12px rgba(0,0,0,0.15)",
         }}
       >
-        <h2 style={{ marginBottom: "12px", fontSize: "24px" }}>🌾 HAKGROS</h2>
-
-        <hr />
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-mark"><Leaf size={21} /></span>
+          <span><strong>HAKGROS</strong><small>UZHAVAN</small></span>
+        </div>
+        <div className="sidebar-section-label">{t("FARM WORKSPACE", "பண்ணை பணித்தளம்")}</div>
 
         <MenuItem
-          title={`🏠 ${t("Dashboard", "டாஷ்போர்டு")}`}
-          onClick={() => setActivePage("dashboard")}
+          icon={Sprout}
+          title={t("Dashboard", "டாஷ்போர்டு")}
+          active={activePage === "dashboard"}
+          onClick={() => navigateToPage("dashboard")}
         />
 
         <MenuItem
-          title={`👨‍🌾 ${t("Farmers", "விவசாயிகள்")}`}
-          onClick={() => setActivePage("farmers")}
+          icon={User}
+          title={t("Farmers", "விவசாயிகள்")}
+          active={activePage === "farmers"}
+          onClick={() => navigateToPage("farmers")}
         />
 
         <MenuItem
-          title={`🌱 ${t("Crop Calendar", "பயிர் காலண்டர்")}`}
-          onClick={() => setActivePage("crop-calendar")}
+          icon={CalendarDays}
+          title={t("Crop Calendar", "பயிர் காலண்டர்")}
+          active={activePage === "crop-calendar"}
+          onClick={() => navigateToPage("crop-calendar")}
         />
 
         <MenuItem
-          title={`🌾 ${t("Land & Soil", "நிலம் & மண்")}`}
-          onClick={() => setActivePage("land")}
+          icon={MapPin}
+          title={t("Land & Soil", "நிலம் & மண்")}
+          active={activePage === "land"}
+          onClick={() => navigateToPage("land")}
         />
 
         <MenuItem
-          title={`🌤 ${t("Weather", "வானிலை")}`}
-          onClick={() => setActivePage("weather")}
+          icon={CloudSun}
+          title={t("Weather", "வானிலை")}
+          active={activePage === "weather"}
+          onClick={() => navigateToPage("weather")}
         />
 
         <MenuItem
-          title={`📈 ${t("Market Prices", "சந்தை விலை")}`}
-          onClick={() => setActivePage("market")}
+          icon={TrendingUp}
+          title={t("Market Prices", "சந்தை விலை")}
+          active={activePage === "market"}
+          onClick={() => navigateToPage("market")}
         />
 
         <MenuItem
-          title={`🧠 ${t("AI Advisory", "கணினி ஆலோசனை")}`}
-          onClick={() => setActivePage("advisory")}
+          icon={Bot}
+          title={t("AI Advisory", "கணினி ஆலோசனை")}
+          active={activePage === "advisory"}
+          onClick={() => navigateToPage("advisory")}
         />
 
         <MenuItem
-          title={`📸 ${t("Disease Detection", "வியாதி கண்டறிதல்")}`}
-          onClick={() => setActivePage("disease")}
+          icon={Stethoscope}
+          title={t("Disease Detection", "வியாதி கண்டறிதல்")}
+          active={activePage === "disease"}
+          onClick={() => navigateToPage("disease")}
         />
 
+        <div className="sidebar-section-label sidebar-section-label-secondary">{t("PREFERENCES", "விருப்பங்கள்")}</div>
         <MenuItem
-          title={`⚙ ${t("Settings", "மைதானம்")}`}
-          onClick={() => setActivePage("settings")}
+          icon={Settings}
+          title={t("Settings", "அமைப்புகள்")}
+          active={activePage === "settings"}
+          onClick={() => navigateToPage("settings")}
         />
       </div>
+
+      {sidebarOpen && (
+        <button
+          className="sidebar-backdrop"
+          type="button"
+          aria-label={t("Close navigation", "வழிசெலுத்தலை மூடு")}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* ================= MAIN CONTENT ================= */}
 
       <div
+        className="main-content"
         style={{
           flex: 1,
           padding: "30px",
@@ -2181,15 +2297,9 @@ function App() {
               gap: "15px",
             }}
           >
-            <Menu
-              size={30}
-              style={{
-                cursor: "pointer",
-              }}
-              onClick={() =>
-                setSidebarOpen(!sidebarOpen)
-              }
-            />
+            <button className="topbar-menu-button" type="button" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={t("Toggle navigation", "வழிசெலுத்தலை மாற்று")}>
+              <Menu size={20} />
+            </button>
 
             <h1
               style={{
@@ -2200,13 +2310,29 @@ function App() {
             </h1>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="topbar-context">
+            <span className="topbar-location"><MapPin size={15} />{weather?.name || selectedWeatherLocation.name}</span>
+            <span className={`connection-status ${weather?.source === "FALLBACK" ? "is-fallback" : weather?.source === "LIVE" ? "is-live" : "is-loading"}`}>
+              <i />{weather?.source || t("CONNECTING", "இணைக்கிறது")}
+            </span>
+          </div>
+
+          <div className="topbar-actions" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {user && (
-              <span style={{ color: "#1b5e20", fontWeight: 700 }}>
+              <span className="topbar-user" style={{ color: "#1b5e20", fontWeight: 700 }}>
                 {user.name || user.email || "Farmer"}
               </span>
             )}
+            <a
+              className="stratum-link"
+              href="https://hakgrosuzhavanprojectfarmersnov2026-xmxy2zubbslwqjlj49o73b.streamlit.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>⚡</span><span>{t("Stratum Cloud Backend", "Stratum Cloud Backend")}</span><ExternalLink size={13} />
+            </a>
             <button
+              className="language-toggle"
               onClick={toggleLanguage}
               style={{
                 background: "linear-gradient(135deg, #5B7E3C 0%, #718F4F 100%)",
@@ -2224,6 +2350,7 @@ function App() {
                 : " English"}
             </button>
             <button
+              className="logout-toggle"
               onClick={handleLogout}
               style={{
                 background: "#fff",
@@ -2280,20 +2407,21 @@ function App() {
             <div className="dashboard-stat-grid reveal-on-scroll">
               <button className="dashboard-stat-card" onClick={() => setActivePage("farmers")}><span className="stat-icon"><User size={21} /></span><span><small>{t("Total farmers", "மொத்த விவசாயிகள்")}</small><strong>{farmersLoading ? "..." : (analytics.totalFarmers ?? farmers.length ?? "N/A")}</strong></span><ArrowRight size={17} /></button>
               <button className="dashboard-stat-card" onClick={() => setActivePage("weather")}><span className="stat-icon"><CloudSun size={21} /></span><span><small>{t("Current weather", "தற்போதைய வானிலை")}</small><strong>{weatherLoading ? "..." : weather?.main?.temp != null ? `${Math.round(weather.main.temp)}°C` : "N/A"}</strong></span><ArrowRight size={17} /></button>
-              <button className="dashboard-stat-card" onClick={() => setActivePage("market")}><span className="stat-icon"><TrendingUp size={21} /></span><span><small>{t("Market price", "சந்தை விலை")}</small><strong>{marketLoading ? "..." : marketPrices[0]?.price || "N/A"}</strong></span><ArrowRight size={17} /></button>
+              <button className="dashboard-stat-card" onClick={() => setActivePage("market")}><span className="stat-icon"><TrendingUp size={21} /></span><span><small>{t("Latest market price", "சமீபத்திய சந்தை விலை")}</small><strong>{marketLoading ? "..." : marketPrices[0]?.modalPrice != null ? `₹${marketPrices[0].modalPrice}` : "N/A"}</strong></span><ArrowRight size={17} /></button>
               <button className="dashboard-stat-card" onClick={() => setActivePage("advisory")}><span className="stat-icon"><Bot size={21} /></span><span><small>{t("AI assistant", "AI உதவியாளர்")}</small><strong>{t("Ready", "தயார்")}</strong></span><ArrowRight size={17} /></button>
             </div>
 
             <div className="dashboard-main-grid">
               <section className="dashboard-panel weather-dashboard-card reveal-on-scroll">
-                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><CloudSun size={16} />{t("Weather overview", "வானிலை சுருக்கம்")}</span><h3>{weather?.name || selectedWeatherCity}</h3></div><button className="icon-action" onClick={fetchWeather} title={t("Refresh weather", "வானிலையை புதுப்பிக்கவும்")}><RefreshCw size={17} /></button></div>
-                <label className="setting-select">{t("Location", "இடம்")}<select value={selectedWeatherCity} onChange={(event) => setSelectedWeatherCity(event.target.value)} aria-label={t("Weather location", "வானிலை இடம்")}><option>Coimbatore</option><option>Gudalur</option><option>Pollachi</option></select></label>
+                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><CloudSun size={16} />{t("Weather overview", "வானிலை சுருக்கம்")}</span><h3>{weather?.name || selectedWeatherLocation.name}</h3></div><button className="icon-action" onClick={fetchWeather} title={t("Refresh weather", "வானிலையை புதுப்பிக்கவும்")}><RefreshCw size={17} /></button></div>
+                <label className="setting-select">{t("Location", "இடம்")}<select value={selectedWeatherLocation.name} onChange={(event) => chooseWeatherPreset(event.target.value)} aria-label={t("Weather location", "வானிலை இடம்")}>{!WEATHER_PRESETS.some((location) => location.latitude === selectedWeatherLocation.latitude && location.longitude === selectedWeatherLocation.longitude) && <option value={selectedWeatherLocation.name}>{selectedWeatherLocation.name}{selectedWeatherLocation.country ? `, ${selectedWeatherLocation.country}` : ""}</option>}{WEATHER_PRESETS.map((location) => <option key={location.name} value={location.name}>{location.name}</option>)}</select></label>
                 {weatherLoading ? <p className="dashboard-muted">{t("Loading weather...", "வானிலை ஏற்றப்படுகிறது...")}</p> : weatherError || !weather ? <p className="dashboard-muted">{t("Weather information unavailable", "வானிலை தகவல் கிடைக்கவில்லை")}</p> : <><span className="source-tag">{weather.source === "FALLBACK" ? "FALLBACK" : "LIVE"}</span><div className="weather-dashboard-content"><div className="weather-temperature"><span>{getWeatherIcon(weather.weather?.[0]?.icon)}</span><strong>{weather.main?.temp != null ? `${Math.round(weather.main.temp)}°C` : "N/A"}</strong><small>{weather.weather?.[0]?.description || t("Condition unavailable", "நிலை கிடைக்கவில்லை")}</small></div><div className="weather-facts"><p><span>{t("Humidity", "ஈரப்பதம்")}</span><strong>{weather.main?.humidity != null ? `${weather.main.humidity}%` : "N/A"}</strong></p><p><span>{t("Wind", "காற்று")}</span><strong>{weather.wind?.speed != null ? `${weather.wind.speed} m/s` : "N/A"}</strong></p><p><span>{t("Precipitation", "மழைப்பொழிவு")}</span><strong>{weather.current?.precipitation ?? "N/A"} mm</strong></p><p><span>{t("Location", "இடம்")}</span><strong>{weather.name || "N/A"}</strong></p></div></div></>}
               </section>
 
               <section className="dashboard-panel market-dashboard-card reveal-on-scroll">
-                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><TrendingUp size={16} />{t("Market prices", "சந்தை விலைகள்")}</span><h3>{t("Latest available feed", "சமீபத்திய தரவு")}</h3></div><button className="text-action" onClick={() => setActivePage("market")}>{t("View all", "அனைத்தையும் காண்க")} <ArrowRight size={15} /></button></div>
-                {marketLoading ? <p className="dashboard-muted">{t("Loading market prices...", "சந்தை விலைகள் ஏற்றப்படுகின்றன...")}</p> : marketError ? <p className="dashboard-muted">{marketError}</p> : marketPrices.length === 0 ? <p className="dashboard-muted">{t("No market data available", "சந்தை தரவு கிடைக்கவில்லை")}</p> : <div className="market-mini-list">{marketPrices.slice(0, 3).map((item, index) => <div className="market-mini-row" key={`${item.crop || "crop"}-${index}`}><span><strong>{item.crop || t("Commodity", "பொருள்")}</strong><small>{item.market || item.source || t("Market feed", "சந்தை தரவு")}</small></span><b>{item.price || "N/A"}</b></div>)}</div>}
+                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><TrendingUp size={16} />{t("Market prices", "சந்தை விலைகள்")}</span><h3>{t("Latest mandi reports", "சமீபத்திய மண்டி அறிக்கைகள்")}</h3></div><button className="text-action" onClick={() => setActivePage("market")}>{t("View all", "அனைத்தையும் காண்க")} <ArrowRight size={15} /></button></div>
+                <span className={`source-tag ${marketMetadata?.status === "LIVE" ? "source-live" : "source-fallback"}`}>{marketMetadata?.status || "FALLBACK"}</span>
+                {marketLoading ? <p className="dashboard-muted">{t("Loading reported market prices...", "சந்தை விலைகள் ஏற்றப்படுகின்றன...")}</p> : marketPrices.length === 0 ? <p className="dashboard-muted">{marketError || t("No market reports available.", "சந்தை அறிக்கைகள் இல்லை.")}</p> : <div className="market-mini-list">{marketPrices.slice(0, 3).map((item, index) => <div className="market-mini-row" key={`${item.market}-${item.commodity}-${index}`}><span><strong>{item.commodity}</strong><small>{[item.market, item.state, item.arrivalDate].filter(Boolean).join(" · ")}</small></span><b>{item.modalPrice != null ? `₹${item.modalPrice}/${item.unit}` : "N/A"}</b></div>)}</div>}
               </section>
             </div>
 
@@ -2307,7 +2435,7 @@ function App() {
               <section className="dashboard-panel quick-actions-panel reveal-on-scroll"><div className="dashboard-panel-heading"><div><span className="dashboard-label"><Plus size={16} />{t("Quick actions", "விரைவு செயல்கள்")}</span><h3>{t("What would you like to do?", "நீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?")}</h3></div></div><div className="quick-action-grid"><button onClick={() => setActivePage("farmers")}><Plus size={17} />{t("Add farmer", "விவசாயியைச் சேர்க்கவும்")}</button><button onClick={() => setActivePage("weather")}><CloudSun size={17} />{t("Check weather", "வானிலையைப் பார்க்கவும்")}</button><button onClick={() => setActivePage("market")}><TrendingUp size={17} />{t("Market prices", "சந்தை விலைகள்")}</button><button onClick={() => setActivePage("settings")}><Settings size={17} />{t("Settings", "அமைப்புகள்")}</button></div></section>
             </div>
 
-            <section className="dashboard-insight reveal-on-scroll"><div><span className="dashboard-label"><Leaf size={16} />{t("Smart farming insight", "ஸ்மார்ட் விவசாய பார்வை")}</span><h3>{weather && marketPrices.length ? t("Your live farm signals are available.", "உங்கள் நேரடி பண்ணைத் தகவல்கள் கிடைக்கின்றன.") : t("More farming data is required for detailed insights.", "விரிவான பார்வைக்கு மேலும் விவசாயத் தரவு தேவை.")}</h3><p>{weather && marketPrices[0] ? `${t("Current conditions", "தற்போதைய நிலை")}: ${weather.weather?.[0]?.description || t("weather available", "வானிலை கிடைக்கிறது")}. ${marketPrices[0].crop || t("Market", "சந்தை")}: ${marketPrices[0].price || "N/A"}.` : t("Use the weather, market and AI tools to build a clearer picture of your farm.", "உங்கள் பண்ணையைப் பற்றி தெளிவான பார்வையை உருவாக்க வானிலை, சந்தை மற்றும் AI கருவிகளைப் பயன்படுத்தவும்.")}</p></div><button className="text-action" onClick={() => setActivePage("advisory")}>{t("Get guidance", "ஆலோசனை பெறுங்கள்")} <ArrowRight size={15} /></button></section>
+            <section className="dashboard-insight reveal-on-scroll"><div><span className="dashboard-label"><Leaf size={16} />{t("Smart farming insight", "ஸ்மார்ட் விவசாய பார்வை")}</span><h3>{weather && marketPrices.length ? t("Weather and reported market signals are available.", "வானிலை மற்றும் சந்தைத் தகவல்கள் கிடைக்கின்றன.") : t("More farming data is required for detailed insights.", "விரிவான பார்வைக்கு மேலும் விவசாயத் தரவு தேவை.")}</h3><p>{weather && marketPrices[0] ? `${t("Latest report", "சமீபத்திய அறிக்கை")}: ${marketPrices[0].commodity} at ${marketPrices[0].market}, ${marketPrices[0].state} (${marketPrices[0].arrivalDate}).` : t("Use the weather, market and AI tools to build a clearer picture of your farm.", "உங்கள் பண்ணையைப் பற்றி தெளிவான பார்வையை உருவாக்க வானிலை, சந்தை மற்றும் AI கருவிகளைப் பயன்படுத்தவும்.")}</p></div><button className="text-action" onClick={() => setActivePage("advisory")}>{t("Get guidance", "ஆலோசனை பெறுங்கள்")} <ArrowRight size={15} /></button></section>
           </section>
         )}
 
@@ -2564,99 +2692,124 @@ function App() {
                 {/* ================= WEATHER ================= */}
 
         {activePage === "weather" && (
-          <div
-            style={{
-              background: "rgba(255,255,255,0.95)",
-              padding: "30px",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            }}
-          >
-            <h2>🌤 {t("Live Weather", "நேரடி வானிலை")}</h2>
-            <label className="setting-select">{t("Location", "இடம்")}<select value={selectedWeatherCity} onChange={(event) => setSelectedWeatherCity(event.target.value)} aria-label={t("Weather location", "வானிலை இடம்")}><option>Coimbatore</option><option>Gudalur</option><option>Pollachi</option></select></label>
-            {weather && <span className="source-tag">{weather.source === "FALLBACK" ? "FALLBACK" : "LIVE"}</span>}
-            {weatherLoading && <p>{t("Loading weather...", "வானிலை ஏறும்...")}</p>}
-            {weatherError && (
-              <p style={{ color: "red" }}>
-                {t("Error loading weather:", "வானிலை ஏற்றதில் தவறு:")} {weatherError}
-              </p>
-            )}
-            {weather && !weatherLoading && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                  marginTop: "15px",
-                }}
-              >
-                <div style={{ fontSize: "48px" }}>
-                  {getWeatherIcon(weather.weather?.[0]?.icon)}
-                </div>
-                <h3>
-                  {weather.name}, {weather.sys?.country}
-                </h3>
-                <p>
-                  <strong>{t("Temperature:", "தாபநிலை:")}</strong> {Math.round(weather.main?.temp)}°C
-                </p>
-                <p>
-                  <strong>{t("Description:", "விளக்கம்:")}</strong> {weather.weather?.[0]?.description}
-                </p>
-                <p>
-                  <strong>{t("Humidity:", " ஈரப்பதம்:")}</strong> {weather.main?.humidity}%
-                </p>
-                <p>
-                  <strong>{t("Wind Speed:", "காற்றின் வேகம்:")}</strong> {weather.wind?.speed} m/s
-                </p>
-                <p>
-                  <strong>{t("Precipitation:", "மழைப்பொழிவு:")}</strong> {weather.current?.precipitation ?? "N/A"} mm
-                </p>
+          <section className="service-page weather-page">
+            <header className="service-heading weather-heading">
+              <div>
+                <span className="dashboard-label"><CloudSun size={16} />{t("Worldwide weather", "உலகளாவிய வானிலை")}</span>
+                <h2>{t("Weather for any location", "எந்த இடத்திற்குமான வானிலை")}</h2>
+                <p className="page-intro">{t("Search cities and postal areas in India or anywhere worldwide. Current conditions use the free Open-Meteo service.", "இந்தியா மற்றும் உலகம் முழுவதும் நகரங்கள், அஞ்சல் பகுதிகளைத் தேடுங்கள். Open-Meteo இலவச சேவை தற்போதைய வானிலையை வழங்குகிறது.")}</p>
+              </div>
+              <span className={`source-tag ${weather?.source === "LIVE" ? "source-live" : "source-fallback"}`}>{weather?.source || "FALLBACK"}</span>
+            </header>
+
+            <form className="weather-location-search" onSubmit={handleWeatherLocationSearch}>
+              <label htmlFor="weather-location-query">{t("Search by city, postal code, or region", "நகரம், அஞ்சல் குறியீடு அல்லது பகுதியைத் தேடுங்கள்")}</label>
+              <div className="weather-search-control">
+                <Search size={18} />
+                <input
+                  id="weather-location-query"
+                  value={weatherLocationQuery}
+                  onChange={(event) => setWeatherLocationQuery(event.target.value)}
+                  placeholder={t("e.g. Coimbatore, London, Singapore", "எ.கா. கோயம்புத்தூர், லண்டன், சிங்கப்பூர்")}
+                  minLength={2}
+                />
+                <button className="primary-action" type="submit" disabled={weatherLocationSearching || weatherLocationQuery.trim().length < 2}>
+                  {weatherLocationSearching ? t("Searching...", "தேடுகிறது...") : t("Search locations", "இடங்களைத் தேடு")}
+                </button>
+              </div>
+              {weatherLocationError && <p className="weather-search-error" role="alert">{weatherLocationError}</p>}
+            </form>
+
+            {weatherLocationResults.length > 0 && (
+              <div className="weather-location-results" role="listbox" aria-label={t("Location search results", "இடத் தேடல் முடிவுகள்")}>
+                {weatherLocationResults.map((location) => (
+                  <button key={`${location.id}-${location.latitude}`} type="button" onClick={() => chooseWeatherLocation(location)}>
+                    <MapPin size={17} />
+                    <span><strong>{location.name}</strong><small>{[location.admin1, location.country].filter(Boolean).join(", ")}</small></span>
+                    <span className="location-coordinate">{location.latitude.toFixed(2)}, {location.longitude.toFixed(2)}</span>
+                  </button>
+                ))}
               </div>
             )}
-            {!weather && !weatherLoading && !weatherError && (
-              <p>No weather data available.</p>
-            )}
-          </div>
+
+            <section className="weather-current-card">
+              <div className="weather-current-heading">
+                <div><span className="dashboard-label">{t("Current conditions", "தற்போதைய நிலவரம்")}</span><h3>{weather?.name || selectedWeatherLocation.name}{weather?.country ? `, ${weather.country}` : ""}</h3></div>
+                <div className="weather-current-actions">
+                  <label className="setting-select">{t("Quick location", "விரைவு இடம்")}<select value={selectedWeatherLocation.name} onChange={(event) => chooseWeatherPreset(event.target.value)} aria-label={t("Quick weather location", "விரைவு வானிலை இடம்")}>{!WEATHER_PRESETS.some((location) => location.latitude === selectedWeatherLocation.latitude && location.longitude === selectedWeatherLocation.longitude) && <option value={selectedWeatherLocation.name}>{selectedWeatherLocation.name}{selectedWeatherLocation.country ? `, ${selectedWeatherLocation.country}` : ""}</option>}{WEATHER_PRESETS.map((location) => <option key={location.name} value={location.name}>{location.name}</option>)}</select></label>
+                  <button className="icon-action" type="button" onClick={fetchWeather} title={t("Refresh weather", "வானிலையை புதுப்பிக்கவும்")}><RefreshCw size={17} /></button>
+                </div>
+              </div>
+              {weatherLoading ? <p className="dashboard-muted">{t("Loading weather...", "வானிலை ஏற்றப்படுகிறது...")}</p> : weatherError ? <p className="weather-search-error" role="alert">{weatherError}</p> : weather && (
+                <>
+                  <div className="weather-current-metrics">
+                    <div className="weather-current-temperature"><span>{getWeatherIcon(weather.weather?.[0]?.icon)}</span><strong>{Number.isFinite(weather.main?.temp) ? `${Math.round(weather.main.temp)}°C` : "—"}</strong><small>{weather.weather?.[0]?.description}</small></div>
+                    <div><small>{t("Humidity", "ஈரப்பதம்")}</small><strong>{Number.isFinite(weather.main?.humidity) ? `${weather.main.humidity}%` : "—"}</strong></div>
+                    <div><small>{t("Wind", "காற்று")}</small><strong>{Number.isFinite(weather.wind?.speed) ? `${weather.wind.speed} m/s` : "—"}</strong></div>
+                    <div><small>{t("Precipitation", "மழைப்பொழிவு")}</small><strong>{Number.isFinite(weather.current?.precipitation) ? `${weather.current.precipitation} mm` : "—"}</strong></div>
+                  </div>
+                  <p className="weather-update-note">{weather.source === "FALLBACK" ? t("Showing cached or regional fallback values; live weather is unavailable.", "சேமித்த அல்லது பகுதி மாற்று மதிப்புகள் காட்டப்படுகின்றன; நேரடி வானிலை கிடைக்கவில்லை.") : `${t("Live data from Open-Meteo", "Open-Meteo நேரடி தரவு")} · ${weather.updatedAt ? new Date(weather.updatedAt).toLocaleString() : ""}`}</p>
+                </>
+              )}
+            </section>
+          </section>
         )}
 
         {/* ================= MARKET ================= */}
 
         {activePage === "market" && (
-          <div
-            style={{
-              background: "rgba(255,255,255,0.95)",
-              padding: "30px",
-              borderRadius: "16px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            }}
-          >
-            <h2>📈 {t("Market Prices", "சந்தை விலைகள்")}</h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "20px",
-                marginTop: "20px",
-              }}
-            >
-              {marketPrices.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    background: "#f1f8e9",
-                    padding: "20px",
-                    borderRadius: "12px",
-                    border: "1px solid #c8e6c9",
-                  }}
-                >
-                  <h3>{item.crop}</h3>
-                  <p style={{ fontSize: "20px", fontWeight: "bold", color: "#2e7d32" }}>
-                    {item.price}
-                  </p>
-                </div>
+          <section className="service-page market-page">
+            <header className="service-heading">
+              <div>
+                <span className="dashboard-label"><TrendingUp size={16} />{t("Official mandi reports", "அதிகாரப்பூர்வ மண்டி அறிக்கைகள்")}</span>
+                <h2>{t("Daily market prices", "தினசரி சந்தை விலைகள்")}</h2>
+                <p className="page-intro">{t("Agmarknet reports from participating Indian markets. Each price includes its reported arrival date; coverage depends on mandi submissions.", "இந்திய சந்தைகளின் Agmarknet அறிக்கைகள். ஒவ்வொரு விலைக்கும் அறிக்கை தேதி காட்டப்படும்; சந்தை அறிக்கைகளின் அடிப்படையில் தரவு மாறும்.")}</p>
+              </div>
+              <div className="market-source-actions">
+                <span className={`source-tag ${marketMetadata?.status === "LIVE" ? "source-live" : "source-fallback"}`}>{marketMetadata?.status || "FALLBACK"}</span>
+                <a className="market-official-link" href="https://agmarknet.gov.in/" target="_blank" rel="noopener noreferrer">{t("Agmarknet source", "Agmarknet மூலம்")} <ExternalLink size={14} /></a>
+                <button className="icon-action" type="button" onClick={() => loadMarketPrices(marketFilters, marketOffset)} title={t("Refresh market prices", "சந்தை விலைகளைப் புதுப்பிக்கவும்")}><RefreshCw size={17} /></button>
+              </div>
+            </header>
+
+            <form className="market-filter-form" onSubmit={(event) => { event.preventDefault(); setMarketOffset(0); loadMarketPrices(marketFilters, 0); }}>
+              {[
+                ["state", t("State", "மாநிலம்"), t("e.g. Tamil Nadu", "எ.கா. தமிழ்நாடு")],
+                ["district", t("District", "மாவட்டம்"), t("e.g. Coimbatore", "எ.கா. கோயம்புத்தூர்")],
+                ["market", t("Market / mandi", "சந்தை / மண்டி"), t("Market name", "சந்தை பெயர்")],
+                ["commodity", t("Commodity", "பொருள்"), t("e.g. Tomato", "எ.கா. தக்காளி")],
+              ].map(([key, label, placeholder]) => (
+                <label key={key}>{label}<input value={marketFilters[key]} onChange={(event) => setMarketFilters((current) => ({ ...current, [key]: event.target.value }))} placeholder={placeholder} /></label>
               ))}
-            </div>
-          </div>
+              <div className="market-filter-actions">
+                <button className="primary-action" type="submit" disabled={marketLoading}>{t("Search reports", "அறிக்கைகளைத் தேடு")}</button>
+                <button className="secondary-action" type="button" onClick={() => { const emptyFilters = { state: "", district: "", market: "", commodity: "" }; setMarketFilters(emptyFilters); setMarketOffset(0); loadMarketPrices(emptyFilters, 0); }}>{t("Clear filters", "வடிகட்டிகளை நீக்கு")}</button>
+              </div>
+            </form>
+
+            {marketMetadata?.updatedAt && <p className="market-update-note">{t("Feed checked", "தரவு சரிபார்க்கப்பட்டது")}: {new Date(marketMetadata.updatedAt).toLocaleString()} · {t("Prices are reported per quintal. Check the arrival date for each record.", "விலைகள் குவிண்டாலுக்கு. ஒவ்வொரு பதிவின் வருகைத் தேதியையும் சரிபார்க்கவும்.")}</p>}
+            {marketMetadata?.message && <p className="market-update-note" role="status">{marketMetadata.message}</p>}
+            {marketError && <div className="market-empty-state" role="alert"><TrendingUp size={23} /><strong>{t("Live market feed not available", "நேரடி சந்தைத் தரவு கிடைக்கவில்லை")}</strong><p>{marketError}</p><small>{t("Configure the server-only DATA_GOV_IN_API_KEY on Vercel to enable official Agmarknet prices. No sample prices are shown.", "அதிகாரப்பூர்வ Agmarknet விலைகளுக்கு Vercel-ல் DATA_GOV_IN_API_KEY அமைக்கவும். மாதிரி விலைகள் காட்டப்படவில்லை.")}</small></div>}
+            {marketLoading && <p className="dashboard-muted">{t("Loading Agmarknet reports...", "Agmarknet அறிக்கைகள் ஏற்றப்படுகின்றன...")}</p>}
+            {!marketLoading && !marketError && marketPrices.length === 0 && <div className="market-empty-state"><TrendingUp size={23} /><strong>{t("No matching market reports", "பொருந்தும் சந்தை அறிக்கைகள் இல்லை")}</strong><p>{t("Try a broader search or check again later.", "பரந்த தேடலை முயற்சிக்கவும் அல்லது பின்னர் மீண்டும் பார்க்கவும்.")}</p></div>}
+            {marketPrices.length > 0 && (
+              <>
+                <div className="market-table-wrap">
+                  <table className="market-table">
+                    <thead><tr><th>{t("Market", "சந்தை")}</th><th>{t("Commodity", "பொருள்")}</th><th>{t("Min price", "குறைந்த விலை")}</th><th>{t("Modal price", "சராசரி விலை")}</th><th>{t("Max price", "அதிகபட்ச விலை")}</th><th>{t("Arrival date", "வருகை தேதி")}</th></tr></thead>
+                    <tbody>{marketPrices.map((item) => <tr key={item.id}><td><strong>{item.market}</strong><small>{[item.district, item.state].filter(Boolean).join(", ")}</small></td><td>{item.commodity}{item.variety ? <small>{item.variety}</small> : null}</td><td>{item.minPrice != null ? `₹${item.minPrice}` : "—"}</td><td className="market-modal-price">{item.modalPrice != null ? `₹${item.modalPrice}` : "—"}<small>/{item.unit || "quintal"}</small></td><td>{item.maxPrice != null ? `₹${item.maxPrice}` : "—"}</td><td>{item.arrivalDate || "—"}</td></tr>)}</tbody>
+                  </table>
+                </div>
+                <div className="market-pagination">
+                  <span>{marketMetadata?.total != null ? `${marketOffset + 1}–${marketOffset + marketPrices.length} ${t("of", "இல்")} ${marketMetadata.total}` : `${marketPrices.length} ${t("reports", "அறிக்கைகள்")}`}</span>
+                  <div>
+                    <button className="secondary-action" type="button" disabled={marketOffset === 0 || marketLoading} onClick={() => { const offset = Math.max(0, marketOffset - 50); setMarketOffset(offset); loadMarketPrices(marketFilters, offset); }}>{t("Previous", "முந்தையது")}</button>
+                    <button className="secondary-action" type="button" disabled={marketLoading || (marketMetadata?.total != null ? marketOffset + marketPrices.length >= marketMetadata.total : marketPrices.length < 50)} onClick={() => { const offset = marketOffset + 50; setMarketOffset(offset); loadMarketPrices(marketFilters, offset); }}>{t("Next", "அடுத்து")}</button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
         )}
 
         {/* ================= DISEASE ================= */}
@@ -2765,32 +2918,19 @@ function App() {
 
 const MenuItem = ({
   title,
+  icon: Icon,
+  active,
   onClick,
 }) => (
-  <div
-    className="menu-item"
+  <button
+    type="button"
+    className={`menu-item ${active ? "is-active" : ""}`}
     onClick={onClick}
-    style={{
-      padding: "12px",
-      marginTop: "10px",
-      cursor: "pointer",
-      borderRadius: "8px",
-      transition: "0.3s",
-      color: "#ffffff",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.background = "#CCD67F";
-      e.currentTarget.style.color = "#1c3a28";
-      e.currentTarget.style.transform = "translateX(6px)";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.background = "transparent";
-      e.currentTarget.style.color = "#ffffff";
-      e.currentTarget.style.transform = "translateX(0)";
-    }}
+    aria-current={active ? "page" : undefined}
   >
-    {title}
-  </div>
+    <Icon size={18} strokeWidth={1.8} />
+    <span>{title}</span>
+  </button>
 );
 
 export default App;
