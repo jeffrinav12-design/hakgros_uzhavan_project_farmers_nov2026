@@ -276,7 +276,7 @@ simulate_heavy_image = st.checkbox("Simulate High-Res Leaf Scan Upload (>60 KB -
 lat, lon = (11.50, 76.49) if "Gudalur" in region else ((11.01, 76.95) if "Coimbatore" in region else (10.66, 77.00))
 weather_data = get_reliable_weather(lat, lon)
 with c2:
-st.subheader("Live Micro-Climate Telemetry")
+ st.subheader("Live Micro-Climate Telemetry")
 st.caption(f"Weather API Status: {weather_data['api_status']}")
 w1, w2, w3 = st.columns(3)
 w1.metric("Temp / வெப்பநிலை", f"{weather_data['temp']} C")
