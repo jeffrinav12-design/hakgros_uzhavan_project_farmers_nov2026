@@ -242,6 +242,8 @@ if nav == "FinOps Command Center & Live SQL Feed":
         {"Name": "5. Solaraelpan", "Domain": "Solar & INR Savings Estimator", "Routing": "Irradiance Logs -> Supabase", "Status": "Active (View 5)", "Link": "https://solaraelpan.vercel.app/"},
         {"Name": "6. Innovoadai", "Domain": "Innovation Showcase", "Routing": "Read-Only Tier -> Neon Fast", "Status": "Live Portal", "Link": "https://share.google/5lfHcOVHNHDIBl8q3"},
         {"Name": "7. AI Email Agent & 8. Moed Bible App", "Domain": "Automation & Daily Scripture", "Routing": "API Queue -> Neon Fast", "Status": "API Ready", "Link": "#"}
+        {"Name": "8. MOED (Jesus Never Fail Ministries)", "Domain": "Scripture Study & Daily Devotional", "Routing": "Ministry Telemetry -> Neon Fast", "Status": "Live Portal", "Link": "https://moedgospelappnov2026.vercel.app/"}
+
     ]
     st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 
