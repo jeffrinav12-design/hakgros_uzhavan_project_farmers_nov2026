@@ -216,7 +216,6 @@ st.sidebar.caption("Multi-Tenant FinOps & Data Optimization Engine")
 node1_ok = "🟢 Online" if neon_engine else "🟡 Awaiting Secret"
 node2_ok = "🟢 Online" if supa_engine else "🟡 Awaiting Secret"
 st.sidebar.markdown(f"**AWS Node (Neon):** {node1_ok}")
-Use code with caution.
 st.sidebar.markdown(f"Azure Node (Supabase): {node2_ok}")
 nav = st.sidebar.radio(
 "Select Tenant Workspace:",
