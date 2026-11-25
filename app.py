@@ -233,7 +233,7 @@ nav = st.sidebar.radio(
 ==============================================================================
 
 
-VIEW 1: FINOPS COMMAND CENTER, 8-APP SUITE & LIVE SQL FEED
+#VIEW 1: FINOPS COMMAND CENTER, 8-APP SUITE & LIVE SQL FEED
 
 
 ==============================================================================
@@ -273,7 +273,7 @@ st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 ==============================================================================
 
 
-VIEW 2: HAKGROS UZHAVAN — SELF-HEALING BILINGUAL AGRI-AI UPGRADE
+#VIEW 2: HAKGROS UZHAVAN — SELF-HEALING BILINGUAL AGRI-AI UPGRADE
 
 
 ==============================================================================
@@ -326,7 +326,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_k
 ==============================================================================
 
 
-VIEW 3: BIBLICAL ARCHAEOLOGY ENGINE
+#VIEW 3: BIBLICAL ARCHAEOLOGY ENGINE
 
 
 ==============================================================================
@@ -368,7 +368,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_k
 ==============================================================================
 
 
-VIEW 4: SAHAEZER — DISASTER SOS & GRACE AI FOOD RESCUE
+#VIEW 4: SAHAEZER — DISASTER SOS & GRACE AI FOOD RESCUE
 
 
 ==============================================================================
@@ -404,7 +404,7 @@ st.dataframe(rescue_nodes[["Node", "Type"]], use_container_width=True, hide_inde
 ==============================================================================
 
 
-VIEW 5: SOLARAELPAN — LIVE SOLAR IRRADIANCE & ₹ INR SAVINGS ESTIMATOR
+#VIEW 5: SOLARAELPAN — LIVE SOLAR IRRADIANCE & ₹ INR SAVINGS ESTIMATOR
 
 
 ==============================================================================
@@ -438,7 +438,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_m
 ==============================================================================
 
 
-VIEW 6: CAMPUS GOVERNANCE SUITE (SANKARA COLLEGE)
+#VIEW 6: CAMPUS GOVERNANCE SUITE (SANKARA COLLEGE)
 
 
 ==============================================================================
