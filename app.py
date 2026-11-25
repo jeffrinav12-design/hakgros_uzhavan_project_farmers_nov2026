@@ -225,43 +225,47 @@ if nav == "FinOps Command Center & Live SQL Feed":
 
     st.divider()
 
-st.subheader("Live Multi-Cloud SQL Telemetry Feed (Neon + Supabase)")
-if is_live_sql:
- st.caption("Reading live committed transactions directly from your 24/7 PostgreSQL nodes.")
-else:
- st.caption("Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
-st.dataframe(logs_df, use_container_width=True, hide_index=True)
-st.divider()
-st.subheader("Unified 8-App Commercial & Academic Suite")
-apps = [
-{"Name": "1. Biblical Archaeology Engine", "Domain": "Geospatial & 3D Scans", "Routing": "Heavy 3D -> Supabase Bulk", "Status": "Active (View 3)", "Link": "#"},
-{"Name": "2. Hakgros Uzhavan (Agri-AI)", "Domain": "Bilingual Farmer Advisory", "Routing": "Weather/Telemetry -> Neon Fast", "Status": "Active (View 2)", "Link": "vercel.app"},
-{"Name": "3. Sahaezer (3rd Prize Hackathon)", "Domain": "Disaster SOS & Food Rescue", "Routing": "Urgent SOS -> Neon Fast", "Status": "Active (View 4)", "Link": "#"},
-{"Name": "4a. Deeksharambh (Sankara College)", "Domain": "Bridge Course Management", "Routing": "Student Records -> Neon Fast", "Status": "Active (View 6)", "Link": "vercel.app"},
-{"Name": "4b. Academic Selection Portal", "Domain": "Anti-Collision Elective Guide", "Routing": "Schedule Matrix -> Neon Fast", "Status": "Active (View 6)", "Link": "vercel.app"},
-{"Name": "5. Solaraelpan", "Domain": "Solar & INR Savings Estimator", "Routing": "Irradiance Logs -> Supabase", "Status": "Active (View 5)", "Link": "vercel.app"},
-{"Name": "6. Innovoadai", "Domain": "Innovation Showcase", "Routing": "Read-Only Tier -> Neon Fast", "Status": "Live Portal", "Link": "share.google"},
-{"Name": "7. AI Email Agent & 8. Moed Bible App", "Domain": "Automation & Daily Scripture", "Routing": "API Queue -> Neon Fast", "Status": "API Ready", "Link": "#"},
-]
-st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
+    st.subheader("Live Multi-Cloud SQL Telemetry Feed (Neon + Supabase)")
+    if is_live_sql:
+        st.caption("Reading live committed transactions directly from your 24/7 PostgreSQL nodes.")
+    else:
+        st.caption("Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
 
-elif nav == ("Hakgros Uzhavan - Bilingual Agri-AI"):
- st.title("Hakgros Uzhavan - Bilingual Agri-AI & Micro-Climate Sync")
-st.markdown("Live Frontend: hakgrosuzhavanprojectfarmersnov2026.vercel.app")
-c1, c2 = st.columns(2)
-with c1:
-region = st.selectbox("Select Micro-Climate Zone:", [
-"Gudalur / Nilgiris (11.50 N, 76.49 E)",
-"Coimbatore Plains (11.01 N, 76.95 E)",
-"Pollachi / Anaimalai (10.66 N, 77.00 E)"
-])
-crop = st.selectbox("Select Crop / பயிர்:", [
-"Tea / தேயிலை",
-"Banana / வாழை",
-"Paddy / நெல்",
-"Pepper / மிளகு",
-"Tomato / தக்காளி"
-])
+    st.dataframe(logs_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.subheader("Unified 8-App Commercial & Academic Suite")
+    apps = [
+        {"Name": "1. Biblical Archaeology Engine", "Domain": "Geospatial & 3D Scans", "Routing": "Heavy 3D -> Supabase Bulk", "Status": "Active (View 3)", "Link": "#"},
+        {"Name": "2. Hakgros Uzhavan (Agri-AI)", "Domain": "Bilingual Farmer Advisory", "Routing": "Weather/Telemetry -> Neon Fast", "Status": "Active (View 2)", "Link": "https://vercel.app"},
+        {"Name": "3. Sahaezer (3rd Prize Hackathon)", "Domain": "Disaster SOS & Food Rescue", "Routing": "Urgent SOS -> Neon Fast", "Status": "Active (View 4)", "Link": "#"},
+        {"Name": "4a. Deeksharambh (Sankara College)", "Domain": "Bridge Course Management", "Routing": "Student Records -> Neon Fast", "Status": "Active (View 6)", "Link": "https://vercel.app"},
+        {"Name": "4b. Academic Selection Portal", "Domain": "Anti-Collision Elective Guide", "Routing": "Schedule Matrix -> Neon Fast", "Status": "Active (View 6)", "Link": "https://vercel.app"},
+        {"Name": "5. Solaraelpan", "Domain": "Solar & INR Savings Estimator", "Routing": "Irradiance Logs -> Supabase", "Status": "Active (View 5)", "Link": "https://vercel.app"},
+        {"Name": "6. Innovoadai", "Domain": "Innovation Showcase", "Routing": "Read-Only Tier -> Neon Fast", "Status": "Live Portal", "Link": "https://share.google"},
+        {"Name": "7. AI Email Agent & 8. Moed Bible App", "Domain": "Automation & Daily Scripture", "Routing": "API Queue -> Neon Fast", "Status": "API Ready", "Link": "#"}
+    ]
+    st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
+
+elif nav == "Hakgros Uzhavan (Bilingual Agri-AI)":
+    st.title("Hakgros Uzhavan - Bilingual Agri-AI & Micro-Climate Sync")
+    st.markdown("**Live Frontend:** [hakgrosuzhavanprojectfarmersnov2026.vercel.app](https://vercel.app)")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        region = st.selectbox("Select Micro-Climate Zone:", [
+            "Gudalur / Nilgiris (11.50 N, 76.49 E)",
+            "Coimbatore Plains (11.01 N, 76.95 E)",
+            "Pollachi / Anaimalai (10.66 N, 77.00 E)"
+        ])
+        crop = st.selectbox("Select Crop / பயிர்:", [
+            "Tea / தேயிலை",
+            "Banana / வாழை",
+            "Paddy / நெல்",
+            "Pepper / மிளகு",
+            "Tomato / தக்காளி"
+        ])
+
 symptom = st.selectbox("Observed Leaf Condition / இலை நிலை:", [
 "Healthy / ஆரோக்கியமானது",
 "Yellowing & Rust Spots / மஞ்சள் மற்றும் துரு புள்ளிகள்",
