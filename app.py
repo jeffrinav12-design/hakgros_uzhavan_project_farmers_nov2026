@@ -253,7 +253,7 @@ st.subheader("📡 Live Multi-Cloud SQL Telemetry Feed (Neon + Supabase)")
 if is_live_sql:
  st.caption("🟢 Reading live committed transactions directly from your 24/7 PostgreSQL nodes.")
 else:
-st.caption("🟡 Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
+ st.caption("🟡 Showing sample telemetry until NEON_AWS_URL & SUPABASE_AZURE_URL are added in Streamlit Secrets.")
 st.dataframe(logs_df, use_container_width=True, hide_index=True)
 st.divider()
 st.subheader("🚀 Unified 8-App Commercial & Academic Suite")
@@ -278,7 +278,7 @@ st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
 
 
 elif nav == "🌱 Hakgros Uzhavan (Bilingual Agri-AI)":
-st.title("🌱 Hakgros Uzhavan — Bilingual Agri-AI & Micro-Climate Sync")
+ st.title("🌱 Hakgros Uzhavan — Bilingual Agri-AI & Micro-Climate Sync")
 st.markdown("Live Frontend: hakgrosuzhavanprojectfarmersnov2026.vercel.app")
 c1, c2 = st.columns(2)
 with c1:
@@ -330,7 +330,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_k
 
 
 elif nav == "🏛️ Biblical Archaeology Engine":
-st.title("🏛️ Biblical Archaeology Engine — Levant Geospatial & 3D Offloader")
+ st.title("🏛️ Biblical Archaeology Engine — Levant Geospatial & 3D Offloader")
 levant_sites = pd.DataFrame([
 {"Site": "City of David (Jerusalem)", "lat": 31.7731, "lon": 35.2354, "Primary Era": "Iron Age II / Second Temple"},
 {"Site": "Tel Megiddo", "lat": 32.5852, "lon": 35.1844, "Primary Era": "Bronze Age / Iron Age"},
@@ -372,7 +372,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['payload_k
 
 
 elif nav == "🚨 Sahaezer (Hackathon Winner Telemetry)":
-st.title("🚨 Sahaezer — Disaster Coordination & GRACE AI Food Rescue")
+ st.title("🚨 Sahaezer — Disaster Coordination & GRACE AI Food Rescue")
 st.markdown("🏆 3rd Prize Hackathon Winner | Jetpack Compose + OpenStreetMap Offline Tiles + GRACE AI Engine")
 rescue_nodes = pd.DataFrame([
 {"Node": "Gudalur Relief Hub (Nilgiris)", "lat": 11.5030, "lon": 76.4917, "Type": "Emergency & Landslide SOS"},
@@ -408,7 +408,7 @@ st.dataframe(rescue_nodes[["Node", "Type"]], use_container_width=True, hide_inde
 
 
 elif nav == "☀️ Solaraelpan (₹ INR Solar Estimator)":
-st.title("☀️ Solaraelpan — Live Solar Irradiance & ₹ INR Savings Engine")
+ st.title("☀️ Solaraelpan — Live Solar Irradiance & ₹ INR Savings Engine")
 st.markdown("Live Portal: solaraelpan.vercel.app")
 sc1, sc2 = st.columns(2)
 with sc1:
@@ -442,7 +442,7 @@ st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_m
 
 
 elif nav == "🎓 Campus Governance (Sankara College)":
-st.title("🎓 Campus Governance Suite — Sankara College of Science and Commerce")
+ st.title("🎓 Campus Governance Suite — Sankara College of Science and Commerce")
 st.markdown("""
 - Deeksharambh (Bridge Course Portal): deeksharambh70antigravity.vercel.app
 - Academic Selection Portal (Elective Anti-Collision): studentselectionportal.vercel.app
@@ -458,9 +458,9 @@ has_conflict = "Conflict" in elective_choice
 payload = {"dept": dept, "core": core_paper, "elective": elective_choice, "conflict": has_conflict}
 receipt = route_workload("Sankara_Campus_Governance", "HIGH", payload, f"{dept[:18]} | {elective_choice[:20]}")
 if has_conflict:
-st.error("⚠️ Schedule Collision Detected! Both papers occupy the 09:30 AM slot. Auto-shuffling to Cyber Forensics (02:00 PM).")
+ st.error("⚠️ Schedule Collision Detected! Both papers occupy the 09:30 AM slot. Auto-shuffling to Cyber Forensics (02:00 PM).")
 else:
-st.success("✅ Zero Timetable Collision! Elective seat locked and synced to campus ledger.")
+ st.success("✅ Zero Timetable Collision! Elective seat locked and synced to campus ledger.")
 st.info(f"🧾 FinOps Receipt: Routed to {receipt['node']} | {receipt['latency_ms']} ms | {receipt['status']}")
 with cg2:
 st.subheader("📊 Deeksharambh Bridge Course Readiness")
