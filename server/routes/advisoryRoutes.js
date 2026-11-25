@@ -1,38 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const axios = require("axios");
+const { getCurrentWeather } = require("../services/weather");
 
 router.get("/:city/:crop", async (req, res) => {
   try {
     const city = req.params.city;
     const crop = req.params.crop;
 
-    const apiKey = process.env.WEATHER_API_KEY;
-
-    const url = `http://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${city}`;
-
-    const response = await axios.get(url);
-
-    const weatherData = response.data;
-    console.log(weatherData); 
-
-  if (weatherData.error) {
-  return res.status(400).json({
-    success: false,
-    message: weatherData.error.message,
-  });
-}
-
-if (!weatherData.current) {
-  return res.status(400).json({
-    success: false,
-    message: "Weather data not found",
-  });
-} 
-const temperature = weatherData.current?.temp_c || 0;
-const humidity = weatherData.current?.humidity || 0;
-const weather =
-  weatherData.current?.condition?.text || "Unknown"; 
+    const weatherData = await getCurrentWeather(city);
+    const temperature = weatherData.main.temp;
+    const humidity = weatherData.main.humidity;
+    const weather = weatherData.weather[0].description;
     let advice = "";
     let farmHealth = 100;
 
@@ -161,6 +139,7 @@ const weather =
       temperature,
       humidity,
       weather,
+      weatherSource: weatherData.source,
       advice,
       farmHealth,
       status,

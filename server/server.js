@@ -11,21 +11,25 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const User = require('./models/User');
 const Land = require('./models/Land');
 const CropPlan = require('./models/CropPlan');
+const { getCurrentWeather } = require('./services/weather');
 
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 console.log('Config loaded:', {
   PORT: process.env.PORT || 5000,
   MONGO_URI: !!process.env.MONGO_URI,
-  WEATHER_API_KEY: !!process.env.WEATHER_API_KEY,
-  GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+  GEMINI_CONFIGURED: !!(process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
 });
 
-const genAI = process.env.GEMINI_API_KEY
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+const geminiApiKey =
+  process.env.GEMINI_API_KEY ||
+  process.env.REACT_APP_GEMINI_API_KEY ||
+  process.env.VITE_GEMINI_API_KEY;
+const genAI = geminiApiKey
+  ? new GoogleGenerativeAI(geminiApiKey)
   : null;
 
-const modelName = process.env.GEMINI_MODEL || "models/gemini-1.5";
+const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 console.log('Gemini model configured:', modelName);
 const model = genAI?.getGenerativeModel({
   model: modelName,
@@ -34,7 +38,7 @@ const model = genAI?.getGenerativeModel({
 const MONGO_URI = process.env.MONGO_URI || "";
 const LOCAL_MONGO_URI =
   process.env.LOCAL_MONGO_URI ||
-  "mongodb://127.0.0.1:27017/hakgrosDB";
+  (process.env.NODE_ENV === "production" ? "" : "mongodb://127.0.0.1:27017/hakgrosDB");
 const DB_NAME = process.env.MONGO_DB_NAME || "hakgrosDB";
 const JWT_SECRET = process.env.JWT_SECRET || "hakgros-local-dev-secret";
 
@@ -164,6 +168,10 @@ const mongooseOptions = {
 
 async function connectDatabase() {
   const uri = MONGO_URI || LOCAL_MONGO_URI;
+  if (!uri) {
+    console.warn("No database URI configured; starting in degraded mode.");
+    return false;
+  }
 
   try {
     await mongoose.connect(uri, mongooseOptions);
@@ -237,9 +245,7 @@ app.post("/api/get-advice", authenticateToken, async (req, res) => {
 
     if (useGemini && model) {
       try {
-        const result = await model.generateContent({
-          prompt: prompt,
-        });
+        const result = await model.generateContent(prompt);
         console.log('Gemini result:', result);
 
         aiResponse =
@@ -259,14 +265,16 @@ app.post("/api/get-advice", authenticateToken, async (req, res) => {
       aiResponse = createLocalAdvice(query, language);
     }
 
-    const newEntry = new Advisory({
-      query,
-      response: aiResponse,
-      language,
-      source,
-    });
-
-    await newEntry.save();
+    try {
+      await new Advisory({
+        query,
+        response: aiResponse,
+        language,
+        source,
+      }).save();
+    } catch (persistenceError) {
+      console.warn("Advisory could not be saved; returning guidance anyway:", persistenceError.message);
+    }
 
     res.json({
       advice: aiResponse,
@@ -475,23 +483,7 @@ app.get(
       const farmers = await Farmer.find();
       console.log('Farmers count:', farmers.length);
 
-      let weatherData = null;
-      try {
-        const city = req.query.city || "Coimbatore";
-        console.log('Fetching weather for city:', city);
-        const weatherResponse = await axios.get(
-          `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}&units=metric`
-        );
-        weatherData = weatherResponse.data;
-      } catch (weatherError) {
-        console.error('Weather API fetch failed:', weatherError?.response?.data || weatherError?.message || weatherError);
-        weatherData = {
-          error:
-            weatherError.response?.data ||
-            weatherError.message ||
-            "Unable to fetch weather",
-        };
-      }
+      const weatherData = await getCurrentWeather(req.query.city);
 
       res.json({
         farmers,
@@ -602,23 +594,7 @@ app.delete("/api/farmers/:id", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/weather", async (req, res) => {
-  try {
-
-    const city = req.query.city || "Coimbatore";
-
-    const response = await axios.get(
-      `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}&units=metric`
-    );
-
-    res.json(response.data);
-
-  } catch (err) {
-    console.error('Weather route error:', err?.response?.data || err?.message || err);
-    res.status(500).json({
-      message: "Unable to fetch weather",
-      error: err?.response?.data || err?.message || err,
-    });
-  }
+  res.json(await getCurrentWeather(req.query.city));
 });
 
 app.get("/api/market", async (req, res) => {
@@ -658,10 +634,84 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'unavailable',
+    telemetry: (process.env.STRATUM_TELEMETRY_PRIMARY_URL ||
+      process.env.STRATUM_TELEMETRY_SECONDARY_URL ||
+      process.env.STRATUM_TELEMETRY_URL ||
+      (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)) ? 'configured' : 'unavailable',
     message: mongoose.connection.readyState === 1
       ? 'Database connection is active.'
       : 'Database is unavailable; app started in degraded mode.',
   });
+});
+
+app.post("/api/telemetry", async (req, res) => {
+  const { event, status, source, occurredAt } = req.body || {};
+  if (
+    typeof event !== "string" ||
+    event.length > 60 ||
+    !["LIVE", "FALLBACK"].includes(status) ||
+    typeof source !== "string" ||
+    source.length > 40 ||
+    !Number.isFinite(Date.parse(occurredAt))
+  ) {
+    return res.status(400).json({ message: "Invalid telemetry event." });
+  }
+
+  if (!["weather", "crop-advisory", "leaf-diagnosis"].includes(event)) {
+    return res.status(400).json({ message: "Unsupported telemetry event." });
+  }
+
+  const row = {
+    event_name: event,
+    status,
+    source,
+    occurred_at: new Date(occurredAt).toISOString(),
+  };
+  try {
+    const telemetryNodes = [
+      process.env.STRATUM_TELEMETRY_PRIMARY_URL,
+      process.env.STRATUM_TELEMETRY_SECONDARY_URL,
+      process.env.STRATUM_TELEMETRY_URL,
+    ].filter(Boolean);
+    for (const endpoint of [...new Set(telemetryNodes)]) {
+      try {
+        await axios.post(endpoint, row, {
+          timeout: 5000,
+          headers: process.env.STRATUM_TELEMETRY_TOKEN
+            ? { Authorization: `Bearer ${process.env.STRATUM_TELEMETRY_TOKEN}` }
+            : {},
+        });
+        return res.status(202).json({ status: "LIVE" });
+      } catch (error) {
+        console.warn("Stratum telemetry node unavailable; trying the next configured node:", error.message);
+      }
+    }
+
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const table = process.env.SUPABASE_TELEMETRY_TABLE || "telemetry_events";
+      if (!/^[a-zA-Z0-9_]+$/.test(table)) {
+        return res.status(500).json({ message: "Invalid Supabase telemetry table configuration." });
+      }
+      await axios.post(`${process.env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${table}`, row, {
+        timeout: 5000,
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+      });
+    } else {
+      return res.status(503).json({
+        status: "FALLBACK",
+        message: telemetryNodes.length ? "All Stratum telemetry nodes are unavailable." : "No Stratum telemetry backend is configured.",
+      });
+    }
+    return res.status(202).json({ status: "LIVE" });
+  } catch (error) {
+    console.error("Telemetry forwarding failed:", error.message);
+    return res.status(503).json({ status: "FALLBACK", message: "Telemetry backend is unavailable." });
+  }
 });
 
 app.post(
@@ -699,6 +749,8 @@ app.post(
 
       const language = req.body?.language === "ta" ? "Tamil" : "English";
       const prompt = `You are a careful agricultural crop disease assistant. Analyze the attached crop or leaf image in ${language}.
+User-selected crop: ${String(req.body?.crop || "unspecified").slice(0, 40)}.
+User-reported symptoms: ${String(req.body?.symptoms || "none supplied").slice(0, 500)}.
 Do not invent a disease. If the image is unclear, not a recognizable crop, or does not provide enough evidence, say exactly: "Unable to identify the crop disease from this image." State uncertainty clearly and recommend consulting a qualified agricultural officer for uncertain or severe cases.
 Return a concise response using exactly these labels:
 Disease Name:

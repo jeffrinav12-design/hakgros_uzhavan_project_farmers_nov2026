@@ -34,6 +34,12 @@ import {
 } from "lucide-react";
 import { convertArea, interpretSoilPh } from "./landUtils";
 import { buildCropCalendar } from "./cropPlanner";
+import {
+  getKeylessMicroClimate,
+  runKeylessBilingualAgriAI,
+  saveAgriTelemetryLog,
+} from "./utils/hakgrosKeylessApi";
+import { flushTelemetry, hasQueuedTelemetry, recordTelemetry } from "./telemetry";
 
 const parseDiseaseAnalysis = (text) => {
   const labels = [
@@ -122,6 +128,8 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   const [weatherError, setWeatherError] = useState("");
+  const [selectedWeatherCity, setSelectedWeatherCity] = useState("Coimbatore");
+  const [telemetryStatus, setTelemetryStatus] = useState("FALLBACK");
   const [marketPrices, setMarketPrices] = useState([]);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState("");
@@ -241,6 +249,9 @@ function App() {
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
   const [useGemini, setUseGemini] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [diagnosisCrop, setDiagnosisCrop] = useState("Paddy");
+  const [diagnosisSymptoms, setDiagnosisSymptoms] = useState("");
+  const [agriReceipt, setAgriReceipt] = useState(null);
   const [authForm, setAuthForm] = useState({
     name: "",
     email: "",
@@ -284,6 +295,11 @@ function App() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const API_BASE = process.env.REACT_APP_API_BASE || "";
+  const trackTelemetry = useCallback((event) => {
+    recordTelemetry(event, API_BASE).then((delivered) => {
+      setTelemetryStatus(delivered ? "LIVE" : "FALLBACK");
+    });
+  }, [API_BASE]);
   const getAuthHeaders = useCallback(() => ({
     ...(authToken
       ? { Authorization: `Bearer ${authToken}` }
@@ -368,7 +384,7 @@ function App() {
 
     try {
       const res = await fetch(
-        `${API_BASE}/api/weather?city=Coimbatore`
+        `${API_BASE}/api/weather?city=${encodeURIComponent(selectedWeatherCity)}`
       );
 
       if (!res.ok) {
@@ -376,13 +392,31 @@ function App() {
       }
 
       const data = await res.json();
+      if (!data?.main || !Number.isFinite(data.main.temp)) {
+        throw new Error("Weather API returned incomplete metrics.");
+      }
       setWeather(data);
-    } catch (error) {
-      console.log("Weather fetch error:", error);
-      setWeatherError(error.message || "Unable to load weather data");
+      trackTelemetry({ event: "weather", status: data.source === "FALLBACK" ? "FALLBACK" : "LIVE", source: data.source || "server" });
+    } catch {
+      const data = await getKeylessMicroClimate(selectedWeatherCity.toLowerCase());
+      setWeather(data);
+      setWeatherError("");
+      trackTelemetry({ event: "weather", status: data.status, source: "open-meteo-client" });
     } finally {
       setWeatherLoading(false);
     }
+  }, [API_BASE, selectedWeatherCity, trackTelemetry]);
+
+  useEffect(() => {
+    const retryTelemetry = () => {
+      const hadQueuedEvents = hasQueuedTelemetry();
+      flushTelemetry(API_BASE).then((delivered) => {
+        if (hadQueuedEvents && delivered) setTelemetryStatus("LIVE");
+      });
+    };
+    window.addEventListener("online", retryTelemetry);
+    retryTelemetry();
+    return () => window.removeEventListener("online", retryTelemetry);
   }, [API_BASE]);
 
   const getWeatherIcon = (iconCode) => {
@@ -537,6 +571,24 @@ function App() {
   // AI ADVISORY
   // ===========================
 
+  const createKeylessAdvice = (crop, symptom) => {
+    const aiResult = runKeylessBilingualAgriAI({
+      crop,
+      symptom,
+      temp: weather?.main?.temp,
+      humidity: weather?.main?.humidity,
+    });
+    const receipt = saveAgriTelemetryLog({
+      region: selectedWeatherCity.toLowerCase(),
+      crop,
+      symptom,
+      weather,
+      aiResult,
+    });
+    setAgriReceipt(receipt);
+    return aiResult;
+  };
+
   const handleAskAI = async () => {
     if (!query) return;
 
@@ -565,16 +617,23 @@ function App() {
         }),
       });
 
+      if (!response.ok) throw new Error(`Advisory endpoint returned ${response.status}`);
       const data = await response.json();
-
-      setResponse(data.advice || t("Unable to get AI advice.", "AI ஆலோசனை பெற முடியவில்லை."));
-      setResponseSource(data.source || "local");
+      if (data.source === "gemini" && data.advice) {
+        setResponse(data.advice);
+        setResponseSource("gemini");
+        trackTelemetry({ event: "crop-advisory", status: "LIVE", source: "gemini" });
+      } else {
+        const aiResult = createKeylessAdvice(advisoryContext.crop, query);
+        setResponse(aiResult.diagnosis);
+        setResponseSource("fallback");
+        trackTelemetry({ event: "crop-advisory", status: "FALLBACK", source: "decision-engine" });
+      }
     } catch (error) {
-
-      console.log(error);
-
-      setResponse("Unable to get AI advice.");
-      setResponseSource("local");
+      const aiResult = createKeylessAdvice(advisoryContext.crop, query);
+      setResponse(aiResult.diagnosis);
+      setResponseSource("fallback");
+      trackTelemetry({ event: "crop-advisory", status: "FALLBACK", source: "decision-engine" });
 
     } finally {
       setIsLoadingAdvice(false);
@@ -935,10 +994,13 @@ function App() {
     setIsAnalyzing(true);
     setUploadMessage("");
     setAnalysis(null);
+    setAgriReceipt(null);
 
     const formData = new FormData();
     formData.append("image", selectedImage);
     formData.append("language", language);
+    formData.append("crop", diagnosisCrop);
+    formData.append("symptoms", diagnosisSymptoms);
 
     try {
       const response = await authFetch(`${API_BASE}/api/upload`, {
@@ -946,21 +1008,18 @@ function App() {
         body: formData,
       });
       const data = await response.json();
-
-      if (response.status === 401 || response.status === 403) {
-        setUploadMessage(t("Your session has expired. Please login again.", "உங்கள் அமர்வு முடிந்துவிட்டது. மீண்டும் உள்நுழையவும்."));
-        return;
-      }
       if (!response.ok) {
         throw new Error(data.message || t("AI analysis is temporarily unavailable. Please try again.", "AI பகுப்பாய்வு தற்காலிகமாக கிடைக்கவில்லை. மீண்டும் முயற்சிக்கவும்."));
       }
 
-      setAnalysis({ disease: data.diagnosis || "", structured: parseDiseaseAnalysis(data.diagnosis || "") });
+      if (!data.diagnosis) throw new Error("The AI endpoint returned no diagnosis.");
+      setAnalysis({ disease: data.diagnosis, structured: parseDiseaseAnalysis(data.diagnosis), source: "LIVE" });
+      trackTelemetry({ event: "leaf-diagnosis", status: "LIVE", source: "gemini" });
     } catch (error) {
-      console.error("Crop disease upload error:", error);
-      setUploadMessage(error instanceof TypeError
-        ? t("Unable to connect to the server.", "சேவையகத்துடன் இணைக்க முடியவில்லை.")
-        : error.message || t("Something went wrong. Please try again.", "ஏதோ தவறு ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்."));
+      const aiResult = createKeylessAdvice(diagnosisCrop, diagnosisSymptoms);
+      setAnalysis({ disease: aiResult.diagnosis, structured: parseDiseaseAnalysis(aiResult.diagnosis), source: "FALLBACK" });
+      setUploadMessage(t("AI unavailable; using symptom-based local guidance.", "AI கிடைக்கவில்லை; அறிகுறி அடிப்படையிலான உள்ளூர் வழிகாட்டுதல் பயன்படுத்தப்படுகிறது."));
+      trackTelemetry({ event: "leaf-diagnosis", status: "FALLBACK", source: "decision-engine" });
     } finally {
       setIsAnalyzing(false);
     }
@@ -971,6 +1030,8 @@ function App() {
     setPreview("");
     setAnalysis(null);
     setUploadMessage("");
+    setDiagnosisSymptoms("");
+    setAgriReceipt(null);
   };
 
   useEffect(() => {
@@ -2225,8 +2286,9 @@ function App() {
 
             <div className="dashboard-main-grid">
               <section className="dashboard-panel weather-dashboard-card reveal-on-scroll">
-                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><CloudSun size={16} />{t("Weather overview", "வானிலை சுருக்கம்")}</span><h3>{weather?.name || "Coimbatore"}</h3></div><button className="icon-action" onClick={fetchWeather} title={t("Refresh weather", "வானிலையை புதுப்பிக்கவும்")}><RefreshCw size={17} /></button></div>
-                {weatherLoading ? <p className="dashboard-muted">{t("Loading weather...", "வானிலை ஏற்றப்படுகிறது...")}</p> : weatherError || !weather ? <p className="dashboard-muted">{t("Weather information unavailable", "வானிலை தகவல் கிடைக்கவில்லை")}</p> : <div className="weather-dashboard-content"><div className="weather-temperature"><span>{getWeatherIcon(weather.weather?.[0]?.icon)}</span><strong>{weather.main?.temp != null ? `${Math.round(weather.main.temp)}°C` : "N/A"}</strong><small>{weather.weather?.[0]?.description || t("Condition unavailable", "நிலை கிடைக்கவில்லை")}</small></div><div className="weather-facts"><p><span>{t("Humidity", "ஈரப்பதம்")}</span><strong>{weather.main?.humidity != null ? `${weather.main.humidity}%` : "N/A"}</strong></p><p><span>{t("Wind", "காற்று")}</span><strong>{weather.wind?.speed != null ? `${weather.wind.speed} m/s` : "N/A"}</strong></p><p><span>{t("Location", "இடம்")}</span><strong>{weather.name || "N/A"}</strong></p></div></div>}
+                <div className="dashboard-panel-heading"><div><span className="dashboard-label"><CloudSun size={16} />{t("Weather overview", "வானிலை சுருக்கம்")}</span><h3>{weather?.name || selectedWeatherCity}</h3></div><button className="icon-action" onClick={fetchWeather} title={t("Refresh weather", "வானிலையை புதுப்பிக்கவும்")}><RefreshCw size={17} /></button></div>
+                <label className="setting-select">{t("Location", "இடம்")}<select value={selectedWeatherCity} onChange={(event) => setSelectedWeatherCity(event.target.value)} aria-label={t("Weather location", "வானிலை இடம்")}><option>Coimbatore</option><option>Gudalur</option><option>Pollachi</option></select></label>
+                {weatherLoading ? <p className="dashboard-muted">{t("Loading weather...", "வானிலை ஏற்றப்படுகிறது...")}</p> : weatherError || !weather ? <p className="dashboard-muted">{t("Weather information unavailable", "வானிலை தகவல் கிடைக்கவில்லை")}</p> : <><span className="source-tag">{weather.source === "FALLBACK" ? "FALLBACK" : "LIVE"}</span><div className="weather-dashboard-content"><div className="weather-temperature"><span>{getWeatherIcon(weather.weather?.[0]?.icon)}</span><strong>{weather.main?.temp != null ? `${Math.round(weather.main.temp)}°C` : "N/A"}</strong><small>{weather.weather?.[0]?.description || t("Condition unavailable", "நிலை கிடைக்கவில்லை")}</small></div><div className="weather-facts"><p><span>{t("Humidity", "ஈரப்பதம்")}</span><strong>{weather.main?.humidity != null ? `${weather.main.humidity}%` : "N/A"}</strong></p><p><span>{t("Wind", "காற்று")}</span><strong>{weather.wind?.speed != null ? `${weather.wind.speed} m/s` : "N/A"}</strong></p><p><span>{t("Precipitation", "மழைப்பொழிவு")}</span><strong>{weather.current?.precipitation ?? "N/A"} mm</strong></p><p><span>{t("Location", "இடம்")}</span><strong>{weather.name || "N/A"}</strong></p></div></div></>}
               </section>
 
               <section className="dashboard-panel market-dashboard-card reveal-on-scroll">
@@ -2511,6 +2573,8 @@ function App() {
             }}
           >
             <h2>🌤 {t("Live Weather", "நேரடி வானிலை")}</h2>
+            <label className="setting-select">{t("Location", "இடம்")}<select value={selectedWeatherCity} onChange={(event) => setSelectedWeatherCity(event.target.value)} aria-label={t("Weather location", "வானிலை இடம்")}><option>Coimbatore</option><option>Gudalur</option><option>Pollachi</option></select></label>
+            {weather && <span className="source-tag">{weather.source === "FALLBACK" ? "FALLBACK" : "LIVE"}</span>}
             {weatherLoading && <p>{t("Loading weather...", "வானிலை ஏறும்...")}</p>}
             {weatherError && (
               <p style={{ color: "red" }}>
@@ -2543,6 +2607,9 @@ function App() {
                 </p>
                 <p>
                   <strong>{t("Wind Speed:", "காற்றின் வேகம்:")}</strong> {weather.wind?.speed} m/s
+                </p>
+                <p>
+                  <strong>{t("Precipitation:", "மழைப்பொழிவு:")}</strong> {weather.current?.precipitation ?? "N/A"} mm
                 </p>
               </div>
             )}
@@ -2599,17 +2666,19 @@ function App() {
             <div className="disease-header">
               <div><p className="eyebrow">AI-assisted • Crop Health Desk</p><h2>🩺 {t("Crop Disease Detection", "பயிர் நோய் கண்டறிதல்")}</h2><p className="page-intro">{t("Upload a clear crop image to identify possible diseases and receive practical recommendations.", "சாத்தியமான நோய்களை கண்டறிந்து நடைமுறை பரிந்துரைகளைப் பெற தெளிவான பயிர் படத்தை பதிவேற்றவும்.")}</p></div>
               <Stethoscope size={34} className="disease-header-icon" />
+              {agriReceipt && <span className="source-tag">{agriReceipt.persisted ? `LOCAL · FALLBACK · ${agriReceipt.id}` : "NOT SAVED"}</span>}
             </div>
             <div className="disease-workspace">
               <div className="disease-upload-panel">
                 <label className="upload-dropzone"><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={handleImageChange} /> <span className="upload-icon">📷</span><strong>{t("Choose a crop image", "பயிர் படத்தைத் தேர்ந்தெடுக்கவும்")}</strong><small>{t("JPG, PNG or WEBP • Maximum 5 MB", "JPG, PNG அல்லது WEBP • அதிகபட்சம் 5 MB")}</small></label>
+                <div className="context-grid"><div><label>{t("Crop", "பயிர்")}</label><select value={diagnosisCrop} onChange={(event) => setDiagnosisCrop(event.target.value)}><option>Tea</option><option>Banana</option><option>Paddy</option><option>Pepper</option><option>Tomato</option></select></div><div><label>{t("Symptoms", "அறிகுறிகள்")}</label><input value={diagnosisSymptoms} onChange={(event) => setDiagnosisSymptoms(event.target.value)} placeholder={t("e.g. yellow leaves, brown spots, wilting", "எ.கா. மஞ்சள் இலைகள், பழுப்பு புள்ளிகள், வாடல்")} /></div></div>
                 {preview && <div className="disease-preview-wrap"><img className="disease-preview" src={preview} alt={t("Selected crop", "தேர்ந்தெடுக்கப்பட்ட பயிர்")} /></div>}
                 <div className="disease-actions"><button className="primary-action" onClick={handleImageUpload} disabled={isAnalyzing}>{isAnalyzing ? t("Analyzing...", "பகுப்பாய்வு செய்கிறது...") : t("Analyze Crop", "பயிரை பகுப்பாய்வு செய்க")}</button>{(selectedImage || analysis || uploadMessage) && <button className="secondary-action" onClick={resetDiseaseAnalysis} disabled={isAnalyzing}>{t("Analyze Another Image", "மற்றொரு படத்தை பகுப்பாய்வு செய்க")}</button>}</div>
                 {uploadMessage && <p className="disease-error" role="alert">{uploadMessage}</p>}
               </div>
               <aside className="disease-safety-card"><ShieldCheck size={23} /><strong>{t("Responsible AI guidance", "பொறுப்பான AI வழிகாட்டுதல்")}</strong><p>{t("AI suggestions are visual assistance, not a final diagnosis. Confirm uncertain or severe cases with an agricultural officer.", "AI பரிந்துரைகள் காட்சி உதவி மட்டுமே; இறுதி நோயறிதல் அல்ல. சந்தேகமான அல்லது தீவிரமான நிலைகளில் வேளாண் அலுவலரை அணுகவும்.")}</p></aside>
             </div>
-            {analysis && <div className="disease-result-card"><div className="result-card-heading"><div><span className="result-label">{t("Crop Disease Analysis", "பயிர் நோய் பகுப்பாய்வு")}</span><h3>{t("AI analysis result", "AI பகுப்பாய்வு முடிவு")}</h3></div><Stethoscope size={24} /></div>{analysis.structured ? <div className="disease-result-grid">{[["disease", "Disease", "நோய்"], ["crop", "Crop", "பயிர்"], ["confidence", "Confidence", "நம்பகத்தன்மை"], ["symptoms", "Symptoms", "அறிகுறிகள்"], ["cause", "Possible Cause", "சாத்தியமான காரணம்"], ["treatment", "Treatment", "சிகிச்சை"], ["prevention", "Prevention", "தடுப்பு"], ["severity", "Severity", "தீவிரம்"]].filter(([key]) => analysis.structured[key]).map(([key, en, ta]) => <div className="disease-result-field" key={key}><strong>{t(en, ta)}</strong><p>{analysis.structured[key]}</p></div>)}</div> : <div className="disease-raw-result">{analysis.disease}</div>}</div>}
+            {analysis && <div className="disease-result-card"><div className="result-card-heading"><div><span className="result-label">{t("Crop Disease Analysis", "பயிர் நோய் பகுப்பாய்வு")}</span><h3>{t("AI analysis result", "AI பகுப்பாய்வு முடிவு")}</h3></div><span className="source-tag">{analysis.source === "LIVE" ? "LIVE" : "FALLBACK"}</span></div>{analysis.structured ? <div className="disease-result-grid">{[["disease", "Disease", "நோய்"], ["crop", "Crop", "பயிர்"], ["confidence", "Confidence", "நம்பகத்தன்மை"], ["symptoms", "Symptoms", "அறிகுறிகள்"], ["cause", "Possible Cause", "சாத்தியமான காரணம்"], ["treatment", "Treatment", "சிகிச்சை"], ["prevention", "Prevention", "தடுப்பு"], ["severity", "Severity", "தீவிரம்"]].filter(([key]) => analysis.structured[key]).map(([key, en, ta]) => <div className="disease-result-field" key={key}><strong>{t(en, ta)}</strong><p>{analysis.structured[key]}</p></div>)}</div> : <div className="disease-raw-result">{analysis.disease}</div>}</div>}
           </section>
         )}
 
@@ -2664,7 +2733,7 @@ function App() {
               </section>
             </div>
             <div className="service-heading"><div><p className="eyebrow">HAKGROS UZHAVAN • Citizen Services</p><h2>{t("Service settings", "சேவை அமைப்புகள்")}</h2><p className="page-intro">{t("Personalise your advisory service, accessibility and notification preferences.", "உங்கள் ஆலோசனை சேவை, அணுகல்தன்மை மற்றும் அறிவிப்பு விருப்பங்களை அமைக்கவும்.")}</p></div><div className="official-seal"><ShieldCheck size={24} /><span>{t("Government service", "அரசு சேவை")}</span></div></div>
-            <div className="status-strip"><CheckCircle2 size={18} /><span>{t("All essential services operational", "அனைத்து முக்கிய சேவைகளும் செயல்பாட்டில் உள்ளன")}</span><span className="status-time">Updated just now</span></div>
+            <div className="status-strip"><CheckCircle2 size={18} /><span>{t("Telemetry delivery", "தரவு அனுப்பும் நிலை")}</span><span className="source-tag">{telemetryStatus}</span><span className="status-time">{t("Offline events stay queued on this device.", "இணைப்பில்லாத நிகழ்வுகள் இந்த சாதனத்தில் வரிசைப்படுத்தப்படும்.")}</span></div>
             <div className="settings-grid">
               <div className="settings-panel"><div className="panel-title"><Bell size={19} /><h3>{t("Alerts and updates", "எச்சரிக்கைகள் மற்றும் புதுப்பிப்புகள்")}</h3></div><label className="toggle-row"><span><strong>{t("Agricultural advisories", "விவசாய ஆலோசனைகள்")}</strong><small>{t("Receive timely crop and weather notices", "பயிர் மற்றும் வானிலை அறிவிப்புகளைப் பெறுங்கள்")}</small></span><input type="checkbox" checked={settings.notifications} onChange={(e) => setSettings({ ...settings, notifications: e.target.checked })} /></label><label className="toggle-row"><span><strong>{t("Data saver mode", "தரவு சேமிப்பு முறை")}</strong><small>{t("Reduce background data requests on mobile networks", "மொபைல் இணையத்தில் பின்னணி தரவு பயன்பாட்டைக் குறைக்கவும்")}</small></span><input type="checkbox" checked={settings.dataSaver} onChange={(e) => setSettings({ ...settings, dataSaver: e.target.checked })} /></label></div>
               <div className="settings-panel"><div className="panel-title"><ClipboardCheck size={19} /><h3>{t("Accessibility and language", "அணுகல்தன்மை மற்றும் மொழி")}</h3></div><div className="setting-select"><label>{t("Preferred language", "விருப்ப மொழி")}</label><select value={language} onChange={(e) => setLanguage(e.target.value)}><option value="en">English</option><option value="ta">தமிழ்</option></select></div><label className="toggle-row"><span><strong>{t("High contrast", "அதிக மாறுபாடு")}</strong><small>{t("Improve readability for low-vision users", "குறைந்த பார்வை உள்ளவர்களுக்கு வாசிப்பை மேம்படுத்தவும்")}</small></span><input type="checkbox" checked={settings.highContrast} onChange={(e) => setSettings({ ...settings, highContrast: e.target.checked })} /></label></div>
@@ -2680,8 +2749,9 @@ function App() {
         {activePage === "advisory" && (
           <section className="service-page advisory-page">
             <div className="service-heading"><div><p className="eyebrow">AI-assisted • Farmer Support Desk</p><h2>{t("AI Agricultural Advisory", "AI விவசாய ஆலோசனை")}</h2><p className="page-intro">{t("Get a clear, practical first response for your farm. Add context so the guidance is more relevant.", "உங்கள் பண்ணைக்கு தெளிவான, நடைமுறை ஆலோசனையைப் பெறுங்கள். கூடுதல் தகவல் அளித்தால் பதில் மேலும் பொருத்தமாக இருக்கும்.")}</p></div><div className="advisory-badge"><ShieldCheck size={18} />{t("Responsible use", "பொறுப்பான பயன்பாடு")}</div></div>
+            {agriReceipt && <p className="source-tag">{agriReceipt.persisted ? `LOCAL · FALLBACK · ${agriReceipt.id}` : "NOT SAVED"}</p>}
             <div className="advisory-layout"><div className="advisory-form settings-panel"><div className="panel-title"><ClipboardCheck size={19} /><h3>{t("Describe your situation", "உங்கள் நிலையை விவரிக்கவும்")}</h3></div><div className="quick-prompts"><span>{t("Common requests", "பொதுவான கேள்விகள்")}</span><button onClick={() => setQuery("My crop leaves are turning yellow")}>{t("Yellow leaves", "மஞ்சள் இலைகள்")}</button><button onClick={() => setQuery("How can I manage irrigation today?")}>{t("Irrigation", "நீர்ப்பாசனம்")}</button></div><textarea rows="5" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Example: My paddy leaves have brown spots after recent rain...", "எடுத்துக்காட்டு: சமீபத்திய மழைக்குப் பிறகு நெல் இலைகளில் பழுப்பு புள்ளிகள் உள்ளன...")} /><div className="context-grid"><div><label>{t("Crop", "பயிர்")}</label><select name="crop" value={advisoryContext.crop} onChange={updateAdvisoryContext}><option value="">{t("Select crop", "பயிரைத் தேர்ந்தெடுக்கவும்")}</option><option>Rice</option><option>Banana</option><option>Tomato</option><option>Cotton</option><option>Groundnut</option></select></div><div><label>{t("Growth stage", "வளர்ச்சி நிலை")}</label><select name="stage" value={advisoryContext.stage} onChange={updateAdvisoryContext}><option value="">{t("Select stage", "நிலையைத் தேர்ந்தெடுக்கவும்")}</option><option>Seedling</option><option>Vegetative</option><option>Flowering</option><option>Harvest</option></select></div><div><label><MapPin size={14} />{t("District / village", "மாவட்டம் / கிராமம்")}</label><input name="location" value={advisoryContext.location} onChange={updateAdvisoryContext} /></div><div><label>{t("Priority", "முன்னுரிமை")}</label><select name="urgency" value={advisoryContext.urgency} onChange={updateAdvisoryContext}><option value="routine">{t("Routine guidance", "வழக்கமான ஆலோசனை")}</option><option value="urgent">{t("Urgent crop concern", "அவசர பயிர் பிரச்சனை")}</option></select></div></div><div className="advisory-actions"><label className="ai-toggle"><input id="useGemini" type="checkbox" checked={useGemini} onChange={(e) => setUseGemini(e.target.checked)} />{t("Use advanced AI when available", "கிடைக்கும்போது மேம்பட்ட AI-ஐப் பயன்படுத்தவும்")}</label><button className="primary-action" onClick={handleAskAI} disabled={isLoadingAdvice || !query.trim()}>{isLoadingAdvice ? t("Preparing guidance...", "ஆலோசனை தயாராகிறது...") : t("Get advisory", "ஆலோசனை பெறுங்கள்")}</button></div></div><aside className="advisory-rail"><div className="trust-card"><ShieldCheck size={24} /><strong>{t("Advice with safeguards", "பாதுகாப்புடன் கூடிய ஆலோசனை")}</strong><p>{t("Use this as a first step. Confirm pesticide and disease treatments with a local agricultural officer.", "இதை முதல் படியாகப் பயன்படுத்துங்கள். பூச்சிக்கொல்லி மற்றும் நோய் சிகிச்சையை உள்ளூர் வேளாண் அலுவலரிடம் உறுதிப்படுத்துங்கள்.")}</p></div><div className="office-card"><CalendarDays size={18} /><div><strong>{t("Need human support?", "மனித உதவி தேவையா?")}</strong><p>{t("Visit your nearest Agriculture Extension Centre for field verification.", "கள ஆய்வுக்கு அருகிலுள்ள வேளாண் விரிவாக்க மையத்தை அணுகவும்.")}</p></div></div></aside></div>
-            {response && <div className="response-panel"><div className="response-header"><div><span className="result-label">{t("Advisory result", "ஆலோசனை முடிவு")}</span><h3>{t("Recommended next steps", "பரிந்துரைக்கப்படும் அடுத்த படிகள்")}</h3></div><span className="source-tag">{t("Source", "மூலம்")}: {responseSource === "gemini" ? "Advanced AI" : t("Local guidance", "உள்ளூர் வழிகாட்டுதல்")}</span></div><p>{response}</p><div className="response-actions"><button onClick={speakAdvice}><Volume2 size={16} />{t("Listen", "கேளுங்கள்")}</button><button onClick={saveAdvisory}><Save size={16} />{t("Save", "சேமிக்கவும்")}</button><button onClick={() => window.print()}><Printer size={16} />{t("Print", "அச்சிடவும்")}</button></div></div>}
+            {response && <div className="response-panel"><div className="response-header"><div><span className="result-label">{t("Advisory result", "ஆலோசனை முடிவு")}</span><h3>{t("Recommended next steps", "பரிந்துரைக்கப்படும் அடுத்த படிகள்")}</h3></div><span className="source-tag">{responseSource === "gemini" ? "LIVE · Advanced AI" : "FALLBACK · Local guidance"}</span></div><p>{response}</p><div className="response-actions"><button onClick={speakAdvice}><Volume2 size={16} />{t("Listen", "கேளுங்கள்")}</button><button onClick={saveAdvisory}><Save size={16} />{t("Save", "சேமிக்கவும்")}</button><button onClick={() => window.print()}><Printer size={16} />{t("Print", "அச்சிடவும்")}</button></div></div>}
             {savedAdvisories.length > 0 && <div className="saved-section"><h3>{t("Saved advisories", "சேமிக்கப்பட்ட ஆலோசனைகள்")}</h3><div className="saved-list">{savedAdvisories.map((item) => <button key={item.id} onClick={() => { setQuery(item.question); setResponse(item.response); }}><span>{item.question}</span><small>{item.date}</small></button>)}</div></div>}
           </section>
         )}
