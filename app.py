@@ -238,7 +238,7 @@ nav = st.sidebar.radio(
 
 
 if nav == "📊 FinOps Command Center & Live SQL Feed":
-st.title("☁️ Stratum Cloud — Multi-Cloud FinOps Engine")
+ st.title("☁️ Stratum Cloud — Multi-Cloud FinOps Engine")
 st.markdown("Real-time workload routing across Neon (AWS Fast RDS) & Supabase (Azure Bulk Storage).")
 logs_df, is_live_sql = fetch_live_logs()
 total_saved = round(logs_df["estimated_savings_usd"].sum(), 4)
